@@ -20,5 +20,12 @@ Rails.application.routes.draw do
         get 'status/events', to: 'status#events'
       end
     end
+
+    namespace :v1 do
+      resources :resumes, only: [:create], module: 'api' do
+        get :preview, on: :collection
+      end
+      get 'status/events', to: 'api/status#events'
+    end
   end
 end
