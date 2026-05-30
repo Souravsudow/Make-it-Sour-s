@@ -6,11 +6,17 @@ class GeminiApiService < ResumeApiService
     gemini-2.0-flash
     gemini-2.0-flash-lite
   ].freeze
+  API_KEY_NAMES = %w[
+    GEMINI_API_KEY
+    GEMINI_API_KEY_2
+    GEMINI_API_KEY_3
+    GEMINI_API_KEY_4
+  ].freeze
   
   def initialize(request_id = nil)
     super(request_id)
-    @api_key = ENV['GEMINI_API_KEY']
-    raise 'GEMINI_API_KEY not set in environment' if @api_key.nil?
+    @api_keys = API_KEY_NAMES.filter_map { |key_name| ENV[key_name].presence }
+    raise 'GEMINI_API_KEY not set in environment' if @api_keys.empty?
   end
 
   private
@@ -24,32 +30,42 @@ class GeminiApiService < ResumeApiService
     response = nil
     last_error = nil
 
-    gemini_models.each do |model|
-      request_body = {
-        model: model,
-        max_tokens: 8192,
-        messages: messages,
-        temperature: 0.2,
-        response_format: response_format_for(prompt)
-      }.compact
+    @api_keys.each_with_index do |api_key, key_index|
+      gemini_models.each do |model|
+        request_body = {
+          model: model,
+          max_tokens: 8192,
+          messages: messages,
+          temperature: 0.2,
+          response_format: response_format_for(prompt)
+        }.compact
 
-      begin
-        response = RestClient.post(
-          GEMINI_API_URL,
-          request_body.to_json,
-          {
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'Authorization' => "Bearer #{@api_key}"
-          }
-        )
-        break
-      rescue RestClient::ExceptionWithResponse => e
-        last_error = e
-        raise unless retryable_api_error?(e)
+        begin
+          response = RestClient.post(
+            GEMINI_API_URL,
+            request_body.to_json,
+            {
+              'Accept' => 'application/json',
+              'Content-Type' => 'application/json',
+              'Authorization' => "Bearer #{api_key}"
+            }
+          )
+          break
+        rescue RestClient::ExceptionWithResponse => e
+          last_error = e
 
-        Rails.logger.warn("Gemini model #{model} failed with retryable error: #{extract_response_error(e)}")
+          if rotate_api_key_error?(e)
+            Rails.logger.warn("Gemini API key ##{key_index + 1} failed, trying next key: #{extract_response_error(e)}")
+            break
+          end
+
+          raise unless retryable_api_error?(e)
+
+          Rails.logger.warn("Gemini model #{model} failed with retryable error: #{extract_response_error(e)}")
+        end
       end
+
+      break if response
     end
 
     handle_api_error(last_error) if response.nil? && last_error
@@ -79,6 +95,12 @@ class GeminiApiService < ResumeApiService
     return true if [429, 500, 502, 503, 504].include?(error.response&.code)
 
     extract_response_error(error).match?(/high demand|overloaded|temporar|try again|quota|not found|not supported/i)
+  end
+
+  def rotate_api_key_error?(error)
+    return true if [401, 403, 429].include?(error.response&.code)
+
+    extract_response_error(error).match?(/api key|quota|rate limit|billing|exceeded your current quota|free tier/i)
   end
 
   def extract_response_error(error)

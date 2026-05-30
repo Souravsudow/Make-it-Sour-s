@@ -20,8 +20,8 @@ export function Footer() {
             open-source
           </a>{' '}
           ❤️! By{' '}
-          <a href="https://x.com/_martinsit" className="text-primary hover:underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
-            @_martinsit
+          <a href="https://souravsiteee.netlify.app" className="text-primary hover:underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
+            @_Sourav
           </a>
           {' '} &copy; {new Date().getFullYear()}.
         </p>

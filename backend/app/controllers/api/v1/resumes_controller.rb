@@ -155,17 +155,22 @@ module Api
       end
 
       def remove_enumitem_options(latex)
-        latex.gsub(/\\begin\{itemize\}\[[^\]]*\]/, '\\begin{itemize}')
+        latex
+          .gsub(/\\newcommand\{\\resumeSubHeadingListStart\}\{\\begin\{itemize\}\[[^\]]*label=\{\}[^\]]*\]\}/,
+                '\\newcommand{\\resumeSubHeadingListStart}{\\begin{itemize}\\renewcommand{\\labelitemi}{}}')
+          .gsub(/\\begin\{itemize\}\[[^\]]*label=\{\}[^\]]*\]/,
+                '\\begin{itemize}\\renewcommand{\\labelitemi}{}')
+          .gsub(/\\begin\{itemize\}\[[^\]]*\]/, '\\begin{itemize}')
       end
 
       def compact_resume_layout(latex)
         text = latex.dup
 
-        # Font size 10pt set karo
+        # Font size 11pt set karo
         text.sub!(/\\documentclass\[([^\]]*)\]\{article\}/) do
           options = $1.split(',').map(&:strip)
           options = options.reject { |option| option.match?(/\A\d+pt\z/) }
-          "\\documentclass[#{(['letterpaper', '10pt'] + options).uniq.join(',')}]{article}"
+          "\\documentclass[#{(['letterpaper', '11pt'] + options).uniq.join(',')}]{article}"
         end
 
         # Geometry package add karo agar nahi hai

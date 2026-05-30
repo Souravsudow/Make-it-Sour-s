@@ -16,8 +16,21 @@ module ResumePrompts
 \usepackage{tabularx}
 \input{glyphtounicode}
 
+
+%----------FONT OPTIONS----------
+% sans-serif
+% \usepackage[sfdefault]{FiraSans}
+% \usepackage[sfdefault]{roboto}
+% \usepackage[sfdefault]{noto-sans}
+% \usepackage[default]{sourcesanspro}
+
+% serif
+% \usepackage{CormorantGaramond}
+% \usepackage{charter}
+
+
 \pagestyle{fancy}
-\fancyhf{}
+\fancyhf{} % clear all header and footer fields
 \fancyfoot{}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
@@ -77,13 +90,14 @@ module ResumePrompts
 
 \renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
 
-\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
-\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeSubHeadingListStart}{\begin{list}{}{\setlength{\leftmargin}{0.15in}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}}}
+\newcommand{\resumeSubHeadingListEnd}{\end{list}}
 \newcommand{\resumeItemListStart}{\begin{itemize}}
 \newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
 
 %-------------------------------------------
 %%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 \begin{document}
 
@@ -94,6 +108,7 @@ module ResumePrompts
     \href{https://linkedin.com/in/...}{\underline{linkedin.com/in/jake}} $|$
     \href{https://github.com/...}{\underline{github.com/jake}}
 \end{center}
+
 
 %-----------EDUCATION-----------
 \section{Education}
@@ -106,9 +121,11 @@ module ResumePrompts
       {Associate's in Liberal Arts}{Aug. 2014 -- May 2018}
   \resumeSubHeadingListEnd
 
+
 %-----------EXPERIENCE-----------
 \section{Experience}
   \resumeSubHeadingListStart
+
     \resumeSubheading
       {Undergraduate Research Assistant}{June 2020 -- Present}
       {Texas A\&M University}{College Station, TX}
@@ -117,6 +134,18 @@ module ResumePrompts
         \resumeItem{Developed a full-stack web application using Flask, React, PostgreSQL and Docker to analyze GitHub data}
         \resumeItem{Explored ways to visualize GitHub collaboration in a classroom setting}
       \resumeItemListEnd
+      
+% -----------Multiple Positions Heading-----------
+% Example of how to add multiple positions to a job:
+%    \resumeSubSubheading
+%     {Software Engineer I}{Oct 2014 - Sep 2016}
+%     \resumeItemListStart
+%        \resumeItem{Apache Beam}
+%          {Apache Beam is a unified model for defining both batch and streaming data-parallel processing pipelines}
+%     \resumeItemListEnd
+%    \resumeSubHeadingListEnd
+%-------------------------------------------
+
     \resumeSubheading
       {Information Technology Support Specialist}{Sep. 2018 -- Present}
       {Southwestern University}{Georgetown, TX}
@@ -124,7 +153,8 @@ module ResumePrompts
         \resumeItem{Communicate with managers to set up campus computers used on campus}
         \resumeItem{Assess and troubleshoot computer problems brought by students, faculty and staff}
         \resumeItem{Maintain upkeep of computers, classroom equipment, and 200 printers across campus}
-      \resumeItemListEnd
+    \resumeItemListEnd
+
     \resumeSubheading
       {Artificial Intelligence Research Assistant}{May 2019 -- July 2019}
       {Southwestern University}{Georgetown, TX}
@@ -132,11 +162,13 @@ module ResumePrompts
         \resumeItem{Explored methods to generate video game dungeons based off of \emph{The Legend of Zelda}}
         \resumeItem{Developed a game in Java to test the generated dungeons}
         \resumeItem{Contributed 50K+ lines of code to an established codebase via Git}
-        \resumeItem{Conducted a human subject study to determine which video game dungeon generation technique is enjoyable}
+        \resumeItem{Conducted  a human subject study to determine which video game dungeon generation technique is enjoyable}
         \resumeItem{Wrote an 8-page paper and gave multiple presentations on-campus}
         \resumeItem{Presented virtually to the World Conference on Computational Intelligence}
       \resumeItemListEnd
+
   \resumeSubHeadingListEnd
+
 
 %-----------PROJECTS-----------
 \section{Projects}
@@ -145,7 +177,7 @@ module ResumePrompts
           {\textbf{Gitlytics} $|$ \emph{Python, Flask, React, PostgreSQL, Docker}}{June 2020 -- Present}
           \resumeItemListStart
             \resumeItem{Developed a full-stack web application using with Flask serving a REST API with React as the frontend}
-            \resumeItem{Implemented GitHub OAuth to get data from user's repositories}
+            \resumeItem{Implemented GitHub OAuth to get data from user’s repositories}
             \resumeItem{Visualized GitHub data to show collaboration}
             \resumeItem{Used Celery and Redis for asynchronous tasks}
           \resumeItemListEnd
@@ -191,10 +223,10 @@ module ResumePrompts
       - honors (name, date, organization, description)
       - presentations (name, date, organization, description)
       - other (any other information that is not covered by the above fields)
-
+      
       Format the response as valid JSON that can be parsed. Ensure all dates, locations, and other details are preserved exactly as written.
       If certain information is not present in the resume, omit those fields from the JSON rather than including empty values.
-
+      
       For bullet points, preserve the exact wording but clean up any formatting issues.
       For technical skills, split them into the exact categories shown above.
 
@@ -206,6 +238,7 @@ module ResumePrompts
       IMPORTANT: Do not include any additional text or comments in the JSON output. Do not include any ```json or ``` in the output.
       IMPORTANT: Provide ONLY the JSON output, no other text or comments.
       IMPORTANT: Any given position or activity must only be listed in a single section.
+
     PROMPT
   end
 
@@ -227,6 +260,7 @@ module ResumePrompts
       For empty content, omit the section entirely. For example, if a job has no bullet points, omit the \\resumeItemListStart and \\resumeItemListEnd.
       Ensure all content is grammatically correct and properly formatted.
 
+
       Key sections to update:
       1. Header - Replace with the provided name and contact information
       2. Education - Use the same formatting but with the provided education details
@@ -243,17 +277,14 @@ module ResumePrompts
       Ensure all LaTeX commands are properly escaped and the document is compilable.
 
       IMPORTANT: Omit non-Unicode characters from the LaTeX output.
-      IMPORTANT: Escape all characters that are not allowed in LaTeX. These include: \\ { } $ % ^ ~ _ # & |. You can escape them by adding a backslash before the character.
-      IMPORTANT: If certain information is not present in the resume, omit those fields from the LaTeX output.
+      IMPORTANT: Escape all characters that are not allowed in LaTeX. These include: \ { } $ % ^ ~ _ # & |. You can escape them by adding a backslash before the character.
+      IMPORTANT: If certain information is not present in the resume, omit those fields from the LaTeX output. For example, if a project has no technologies used, omit the technologies used section. If a project has no dates, omit the dates section. Do NOT write "None" or "N/A" in the LaTeX output.
       IMPORTANT: Do not include any additional text or comments in the LaTeX output. Do not include any ```latex or ``` in the LaTeX output.
       IMPORTANT: Do not add unnecessary or additional formatting beyond what is already in the template.
       IMPORTANT: Fit everything on one page. Do not create a second page.
       IMPORTANT: Provide ONLY the LaTeX output, no other text or comments.
       IMPORTANT: Any given position or activity must only be listed in a single section. Avoid repetition.
-      IMPORTANT: NEVER use \\item\\small or \\small{\\item} directly for bullet points.
-      IMPORTANT: ALWAYS use \\resumeItem{text} command for ALL bullet points without exception.
-      IMPORTANT: Every single bullet point MUST use \\resumeItem{your text here} format only. No exceptions.
       \\documentclass
     PROMPT
   end
-end
+end 
