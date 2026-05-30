@@ -1,164 +1,249 @@
-# Make It Jake's
+# 🚀 Make It Sour's
 
-A modern web application for converting any resume into Jake's Resume template—the industry standard for SWEs, built with Ruby on Rails backend and Remix.js frontend.
+### Transform Any Resume Into a World-Class SWE Resume
 
-Try it now: https://jakesresu.me/
+**Make It Sour's** is an AI-powered resume transformation platform that converts any resume into the industry-renowned **Jake's Resume** format using advanced AI processing, stunning UI experiences, and real-time resume generation.
 
-## 🚀 Features
+---
 
-- Resume file upload and processing
-- LaTeX output generation
-- Modern, responsive UI
-- RESTful API architecture
-- Containerized deployment with Docker
+## ✨ Experience the Future of Resume Building
 
-## 🛠️ Tech Stack
+Imagine uploading a cluttered resume and watching it transform into a clean, recruiter-approved software engineering resume through immersive animations, intelligent parsing, and pixel-perfect formatting.
 
-### Backend
-- Ruby on Rails API
-- Redis for job processing
-- Docker containerization
+### 🎬 3D Animated User Experience
 
-### Frontend
-- Remix.js
-- TypeScript
-- Tailwind CSS
-- Vite
+* Floating Glassmorphism Resume Cards
+* Smooth 3D Transformations
+* AI Processing Animations
+* Dynamic Resume Morphing Effects
+* Premium Motion Design Inspired by:
+
+  * Apple
+  * Arc Browser
+  * Linear
+  * Stripe
+  * Framer
+
+Every interaction is designed to feel futuristic, elegant, and effortless.
+
+---
+
+## 🌟 Key Features
+
+### 📄 AI Resume Conversion
+
+Convert any resume format into Jake's Resume template automatically.
+
+### ⚡ Real-Time Processing
+
+Track resume generation progress with live status updates.
+
+### 🎨 Modern 3D Interface
+
+Interactive UI with premium animations and smooth transitions.
+
+### 📑 PDF Preview Generation
+
+Instantly preview professionally formatted resumes.
+
+### 🔄 Server-Sent Events
+
+Live processing updates without refreshing the page.
+
+### ☁️ Cloud Native Infrastructure
+
+Built for scalability and production deployment.
+
+---
+
+## 🛠 Technology Stack
+
+### Backend Architecture
+
+* Ruby on Rails API
+* Redis Queue Management
+* RESTful Services
+* Docker Containers
+
+### Frontend Experience
+
+* Remix.js
+* TypeScript
+* Tailwind CSS
+* Vite
+* Framer Motion
+* Three.js Integration
+
+### AI Layer
+
+* Anthropic Claude
+* Google Gemini
+* Fireworks Llama
 
 ### Infrastructure
-- Google Cloud Platform
-- Load Balancer configuration
-- CI/CD with Cloud Build
 
-## 🏗️ Project Structure
+* Google Cloud Platform
+* Cloud Build CI/CD
+* Cloud Run Deployment
+* Load Balancer Configuration
 
+---
+
+## 🏗 Architecture Overview
+
+```text
+User Upload
+     │
+     ▼
+Frontend (Remix.js)
+     │
+     ▼
+Rails API
+     │
+     ▼
+AI Processing Pipeline
+     │
+     ▼
+Resume Transformation Engine
+     │
+     ▼
+LaTeX Generation
+     │
+     ▼
+PDF Rendering
+     │
+     ▼
+Live Preview Delivery
 ```
-.
-├── backend/           # Ruby on Rails API server
-├── frontend/          # Remix.js web application
-├── cloudbuild.yaml    # Cloud Build configuration
-└── lb.yaml           # Load balancer configuration
+
+---
+
+## 🎥 User Journey
+
+### Step 01 — Upload
+
+Users upload their resume through a beautifully animated drag-and-drop interface.
+
+### Step 02 — AI Analysis
+
+The system extracts and understands:
+
+* Experience
+* Education
+* Skills
+* Projects
+* Achievements
+
+### Step 03 — Transformation
+
+AI restructures content into the proven Jake's Resume layout.
+
+### Step 04 — Generation
+
+A production-ready LaTeX resume is generated automatically.
+
+### Step 05 — Preview
+
+Users instantly receive a polished PDF preview.
+
+---
+
+## 🚀 Local Development
+
+### Backend
+
+```bash
+cd backend
+bundle install
+rails server
 ```
 
-## 🚦 Prerequisites
+### Frontend
 
-- Node.js (v18 or higher)
-- Ruby (3.x)
-- Docker and Docker Compose
-- Redis
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## 🔧 Setup & Installation
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Install dependencies:
-   ```bash
-   bundle install
-   ```
-
-3. Start the Rails server:
-   ```bash
-   rails server
-   ```
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+---
 
 ## 🐳 Docker Deployment
 
-Both frontend and backend components can be run using Docker:
+```bash
+docker-compose build
+docker-compose up
+```
 
-1. Build the images:
-   ```bash
-   docker-compose build
-   ```
+---
 
-2. Start the services:
-   ```bash
-   docker-compose up
-   ```
+## ☁️ Google Cloud Deployment
 
-## 🚀 Cloud Deployment
+```bash
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+gcloud builds submit
+```
 
-The application is configured for deployment on Google Cloud Platform:
+---
 
-1. Configure your GCP project and authenticate:
-   ```bash
-   gcloud auth login
-   gcloud config set project [YOUR_PROJECT_ID]
-   ```
+## 🔐 Environment Variables
 
-2. Deploy using Cloud Build:
-   ```bash
-   gcloud builds submit
-   ```
+### Backend
 
-## 🔒 Environment Variables
+```env
+ANTHROPIC_API_KEY=
+FIREWORKS_API_KEY=
+GEMINI_API_KEY=
+REDIS_URL=
+RAILS_MASTER_KEY=
+SECRET_KEY_BASE=
+```
 
-Make sure to set up the following environment variables:
+### Frontend
 
-### Backend (.env)
-- `ANTHROPIC_API_KEY` - Anthropic API key for resume processing
-- `FIREWORKS_API_KEY` - Fireworks Llama API key for resume processing
-- `GEMINI_API_KEY` - Gemini API key for resume processing
-- `REDIS_URL` - Redis connection URL
-- `RAILS_ENV` - Rails environment (development/production)
-- `RAILS_LOG_TO_STDOUT` - Enable logging to stdout in production
-- `RAILS_SERVE_STATIC_FILES` - Enable serving static files in production
-- `RAILS_MASTER_KEY` - Rails master key for decrypting credentials
-- `SECRET_KEY_BASE` - Rails secret key for production
+No local environment variables required.
 
-### Frontend (.env)
-No environment variables required for local development. Production variables are handled through Cloud Run deployment.
+Production secrets are securely managed through Google Cloud Secret Manager.
 
-Note: In production (Cloud Run), secrets are managed through GCP Secret Manager.
+---
 
-## 📝 API Documentation
+## 📡 API Endpoints
 
-The backend provides RESTful API endpoints for resume processing:
+### Upload Resume
 
-- `POST /api/v1/resumes` - Upload a resume file for processing
-  - Accepts multipart form data with a `file` parameter
-  - Returns a `request_id` for tracking the processing status
-  - Rate limited to 5 requests per 15 minutes per IP
+```http
+POST /api/v1/resumes
+```
 
-- `GET /api/v1/resumes/preview?request_id=<request_id>` - Preview the processed resume
-  - Returns PDF file for inline display
-  - Caches the PDF for 1 hour after generation
+### Preview Resume
 
-- `GET /api/v1/status/events?request_id=<request_id>` - Server-Sent Events (SSE) endpoint for real-time status updates
-  - Streams processing status updates
-  - Returns final result when processing is complete
-  - Connection times out after 60 seconds
-  - Results are cached for 1 hour after completion
+```http
+GET /api/v1/resumes/preview
+```
 
-## 🤝 Contributing
+### Real-Time Status Updates
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```http
+GET /api/v1/status/events
+```
 
-## 📄 License
+---
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+## 🎯 Vision
+
+Our mission is simple:
+
+> Help developers create recruiter-ready resumes in seconds through AI, beautiful design, and world-class user experience.
+
+No templates to edit.
+No formatting headaches.
+Just upload, transform, and download.
+
+---
+
+## 📜 License
+
+MIT License
+
+Built with ❤️ by Sourav Yadav
