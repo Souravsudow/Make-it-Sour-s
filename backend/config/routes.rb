@@ -21,11 +21,11 @@ Rails.application.routes.draw do
       end
     end
 
-    namespace :v1 do
-      resources :resumes, only: [:create], module: 'api' do
+    scope module: 'api/v1', path: 'v1', as: 'v1' do
+      resources :resumes, only: [:create] do
         get :preview, on: :collection
       end
-      get 'status/events', to: 'api/status#events'
+      get 'status/events', to: 'status#events'
     end
   end
 end
