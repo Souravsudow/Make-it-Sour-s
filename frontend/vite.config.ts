@@ -1,4 +1,5 @@
 import { vitePlugin as remix } from "@remix-run/dev";
+import { netlifyPlugin } from "@netlify/remix-adapter/plugin";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
@@ -19,17 +20,23 @@ export default defineConfig(({ command }) => ({
         v3_lazyRouteDiscovery: true,
       },
     }),
+    netlifyPlugin(),
     tsconfigPaths(),
   ],
   server: {
+    host: "0.0.0.0",
     port: 5173,
-    proxy: command === 'serve' ? {
-      '^/api/.*': {
-        target: process.env.VITE_API_URL || 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-      },
-    } : undefined,
+    allowedHosts: true,
+    proxy:
+      command === "serve"
+        ? {
+            "^/api/.*": {
+              target: process.env.VITE_API_URL || "http://localhost:3000",
+              changeOrigin: true,
+              secure: false,
+              ws: true,
+            },
+          }
+        : undefined,
   },
 }));

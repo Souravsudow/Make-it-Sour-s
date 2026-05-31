@@ -17,13 +17,23 @@ type ActionData = {
   request_id?: string;
 };
 
-export async function loader({ request }: LoaderFunctionArgs) {
+function getApiOrigin(request: Request) {
+  const configuredApiUrl = process.env.API_URL || process.env.VITE_API_URL;
+
+  if (configuredApiUrl) {
+    return configuredApiUrl.replace(/\/$/, '');
+  }
+
   const url = new URL(request.url);
   if (!url.origin.includes('localhost')) {
     url.protocol = 'https:';
   }
+  return url.origin;
+}
+
+export async function loader({ request }: LoaderFunctionArgs) {
   return json({
-    API_ORIGIN: url.origin
+    API_ORIGIN: getApiOrigin(request)
   });
 }
 
@@ -36,8 +46,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    const url = new URL(request.url);
-    const response = await convertResume(file, url.origin);
+    const response = await convertResume(file, getApiOrigin(request));
     return json<ActionData>({ request_id: response.request_id });
   } catch (error) {
     return json<ActionData>(
