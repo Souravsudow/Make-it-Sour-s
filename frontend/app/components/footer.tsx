@@ -16,7 +16,7 @@ export function Footer() {
             Privacy Policy
           </Link>
           . We're{' '}
-          <a href="https://github.com/martin226/makeitjakes" className="text-primary hover:underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/Souravsudow/Make-it-Sour-s" className="text-primary hover:underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
             open-source
           </a>{' '}
           ❤️! By{' '}
