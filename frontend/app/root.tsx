@@ -21,7 +21,7 @@ export const meta: MetaFunction = () => {
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: styles },
   { rel: 'stylesheet', href: fonts },
-  { rel: 'icon', href: '/favicon.ico?v=4' },
+  { rel: 'icon', href: '/favicon.ico?v=5' },
 ];
 
 export async function loader({ request }: LoaderFunctionArgs) {
