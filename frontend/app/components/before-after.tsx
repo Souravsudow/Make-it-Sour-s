@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { MoveRight } from 'lucide-react';
+import MoveRight from 'lucide-react/icons/move-right';
 import before from '~/assets/img/before.png';
 import after from '~/assets/img/after.png';
 
