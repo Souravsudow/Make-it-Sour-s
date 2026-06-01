@@ -13,8 +13,8 @@ import fonts from './fonts.css?url';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Make It Jake's" },
-    { name: "description", content: "Transform your SWE resume into Jake's elegant LaTeX template with just one click. No LaTeX knowledge required." },
+    { title: "Make It Sour's" },
+    { name: "description", content: "Transform your SWE resume into Sour's elegant LaTeX template with just one click. No LaTeX knowledge required." },
   ];
 };
 
