@@ -6,35 +6,35 @@ class ResumeFormatterService
     'text/plain'
   ].freeze
 
-  def initialize(file, request_id = nil)
-    @file = file
+  # Initialize with content string instead of file object
+  def initialize(content:, content_type:, original_filename:, request_id: nil)
+    @content = content
+    @content_type = content_type
+    @original_filename = original_filename
     @request_id = request_id
-    validate_file!
+    validate_content!
   end
 
-  def format(mutex, condition)
-    content = extract_text_from_file
-    mutex.synchronize do
-      condition.signal # Signal that the file has been read
-    end
+  def format
+    text = extract_text_from_content
     gemini_service = GeminiApiService.new(@request_id)
-    gemini_service.format_resume(content)
+    gemini_service.format_resume(text)
   rescue StandardError => e
     handle_error(e)
   end
 
   private
 
-  def validate_file!
-    raise 'No file provided' if @file.nil?
-    raise 'Invalid file type' unless ALLOWED_CONTENT_TYPES.include?(@file.content_type)
-    raise 'File too large' if @file.size > 10.megabytes
+  def validate_content!
+    raise 'No file provided' if @content.nil? || @content.empty?
+    raise 'Invalid file type' unless ALLOWED_CONTENT_TYPES.include?(@content_type)
+    raise 'File too large' if @content.bytesize > 10.megabytes
   end
 
-  def extract_text_from_file
-    case @file.content_type
+  def extract_text_from_content
+    case @content_type
     when 'text/plain'
-      @file.read
+      @content
     when 'application/pdf'
       extract_text_from_pdf
     when 'application/msword'
@@ -48,7 +48,13 @@ class ResumeFormatterService
 
   def extract_text_from_pdf
     begin
-      reader = PDF::Reader.new(@file.path)
+      # Write content to a temporary file
+      tempfile = Tempfile.new(['resume', '.pdf'])
+      tempfile.binmode
+      tempfile.write(@content)
+      tempfile.rewind
+
+      reader = PDF::Reader.new(tempfile.path)
       text = ""
       reader.pages.each_with_index do |page, index|
         begin
@@ -68,30 +74,44 @@ class ResumeFormatterService
     rescue StandardError => e
       Rails.logger.error("Error extracting text from PDF file: #{e.message}")
       raise 'Unable to read PDF file'
+    ensure
+      tempfile.close! if tempfile
     end
   end
 
   def extract_text_from_doc
-    # For older .doc files
+    tempfile = Tempfile.new(['resume', '.doc'])
+    tempfile.binmode
+    tempfile.write(@content)
+    tempfile.rewind
+
     begin
-      extractor = MSWordDoc::Extractor.load(@file.path)
+      extractor = MSWordDoc::Extractor.load(tempfile.path)
       text = extractor.whole_contents
       clean_text(text)
     rescue StandardError => e
       Rails.logger.error("Error extracting text from DOC file: #{e.message}")
       raise 'Unable to read DOC file'
+    ensure
+      tempfile.close!
     end
   end
 
   def extract_text_from_docx
-    # For newer .docx files
+    tempfile = Tempfile.new(['resume', '.docx'])
+    tempfile.binmode
+    tempfile.write(@content)
+    tempfile.rewind
+
     begin
-      doc = Docx::Document.open(@file.path)
+      doc = Docx::Document.open(tempfile.path)
       text = doc.paragraphs.map(&:text).join("\n")
       clean_text(text)
     rescue StandardError => e
       Rails.logger.error("Error extracting text from DOCX file: #{e.message}")
       raise 'Unable to read DOCX file'
+    ensure
+      tempfile.close!
     end
   end
 
@@ -104,12 +124,10 @@ class ResumeFormatterService
   def handle_error(error)
     case error.message
     when 'No file provided', 'Invalid file type', 'File too large', 'Unsupported file type',
-         'Unable to read DOC file', 'Unable to read DOCX file'
+         'Unable to read DOC file', 'Unable to read DOCX file', 'Unable to read PDF file'
       raise error
     else
-      # Rails.logger.error("Error processing resume: #{error.message}")
       raise error
-      raise 'An error occurred while processing the resume'
     end
   end
 end

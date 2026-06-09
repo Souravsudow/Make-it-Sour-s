@@ -21,7 +21,7 @@ class GeminiApiService < ResumeApiService
 
   private
 
-  def make_api_request(prompt, pre_message = nil)
+  def make_api_request(prompt)
     messages = [{
       role: 'user',
       content: prompt
