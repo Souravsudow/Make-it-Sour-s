@@ -9,7 +9,10 @@ class ResumeLatexRenderer
     "{" => "\\{",
     "}" => "\\}",
     "~" => "\\textasciitilde{}",
-    "^" => "\\textasciicircum{}"
+    "^" => "\\textasciicircum{}",
+    "|" => "\\textbar{}",
+    "<" => "\\textless{}",
+    ">" => "\\textgreater{}"
   }.freeze
 
   CONTACT_SEPARATOR = " \\textbullet{} "
@@ -37,6 +40,7 @@ class ResumeLatexRenderer
   def preamble
     <<~LATEX
       \\documentclass[letterpaper,10pt]{article}
+      \\usepackage[utf8]{inputenc}
       \\usepackage[T1]{fontenc}
       \\usepackage{textcomp}
       \\usepackage[top=0.4in, bottom=0.4in, left=0.5in, right=0.5in]{geometry}
@@ -97,7 +101,7 @@ class ResumeLatexRenderer
     return nil if entries.empty?
 
     body = entries.map do |entry|
-      degree_line = [entry["degree"], entry["gpa"].empty? ? nil : "GPA: #{entry["gpa"]}", list_text(entry["coursework"])].compact.reject(&:empty?).join(", ")
+      degree_line = [sanitize_text(entry["degree"]), entry["gpa"].to_s.empty? ? nil : "GPA: #{sanitize_text(entry["gpa"])}", list_text(entry["coursework"])].compact.reject(&:empty?).join(", ")
       "\\resumeSubheading{#{escape(entry["school"])}}{#{escape(entry["location"])}}{#{escape(degree_line)}}{#{escape(entry["graduation_date"])}}"
     end.join("\n")
 
@@ -109,8 +113,8 @@ class ResumeLatexRenderer
     return nil if entries.empty?
 
     body = entries.map do |entry|
-      title = entry["title"].empty? ? entry["company"] : entry["title"]
-      company = entry["company"] == title ? "" : entry["company"]
+      title = entry["title"].to_s.empty? ? entry["company"] : entry["title"]
+      company = entry["company"].to_s == title ? "" : entry["company"].to_s
       [
         "\\resumeSubheading{#{escape(title)}}{#{escape(entry["dates"])}}{#{escape(company)}}{#{escape(entry["location"])}}",
         item_list(entry["bullets"])
@@ -150,7 +154,7 @@ class ResumeLatexRenderer
       ].compact.join("\n")
     end.join("\n")
 
-    section("Honors", "\\resumeSubHeadingListStart\n#{body}\n\\resumeSubHeadingListEnd")
+    section("Honors & Awards", "\\resumeSubHeadingListStart\n#{body}\n\\resumeSubHeadingListEnd")
   end
 
   def skills_section
@@ -181,11 +185,15 @@ class ResumeLatexRenderer
   end
 
   def escape(value)
-    value.to_s.gsub(/[\\&%$#_{}~^]/) { |char| LATEX_ESCAPE[char] }
+    value.to_s.gsub(/[\\&%$#_{}~^|<>]/) { |char| LATEX_ESCAPE[char] || char }
+  end
+
+  def sanitize_text(value)
+    value.to_s.strip
   end
 
   def list_text(value)
-    Array(value).map(&:to_s).map(&:strip).reject(&:empty?).join(", ")
+    Array(value).map { |item| sanitize_text(item) }.reject(&:empty?).join(", ")
   end
 
   def titleize(value)

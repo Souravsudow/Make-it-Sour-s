@@ -27,5 +27,3 @@ module Backend
   end
 end
 
-# Initialize the Rails application
-Rails.application.initialize!

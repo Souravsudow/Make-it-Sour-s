@@ -5,10 +5,6 @@ Rails.application.routes.draw do
     # Health check endpoint for load balancers
     get "up" => "rails/health#show", as: :rails_health_check
 
-    # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
-    # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
-    # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
-
     # Defines the root path route ("/")
     # root "posts#index"
 
@@ -19,13 +15,6 @@ Rails.application.routes.draw do
         end
         get 'status/events', to: 'status#events'
       end
-    end
-
-    scope module: 'api/v1', path: 'v1', as: 'v1' do
-      resources :resumes, only: [:create] do
-        get :preview, on: :collection
-      end
-      get 'status/events', to: 'status#events'
     end
   end
 end
