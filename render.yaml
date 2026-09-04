@@ -1,0 +1,27 @@
+# Render Blueprint — deploys the backend (Rails server + Sidekiq worker, both
+# run by bin/start inside one container) from backend/Dockerfile.
+#
+# Free tier: the instance sleeps after 15 min without traffic and wakes on the
+# next request (~30-60s cold start). Fine for a personal tool.
+services:
+  - type: web
+    name: makeitsour-backend
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /up
+    plan: free
+    numInstances: 1
+    envVars:
+      # Fill these two in Render after connecting the repo (or set them in
+      # the Blueprint creation dialog):
+      - key: REDIS_URL
+        sync: false # e.g. rediss://default:...@...redis.cloud:6379 from Redis Cloud
+      - key: GROQ_API_KEY
+        sync: false # gsk_... from console.groq.com
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      # Allow the Netlify frontend to call this backend cross-origin
+      - key: CORS_ORIGINS
+        value: https://makeitsour.netlify.app
+      - key: PDF_COMPILE_TIMEOUT
+        value: "60"

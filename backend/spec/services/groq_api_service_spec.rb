@@ -57,7 +57,7 @@ RSpec.describe GroqApiService do
           .with(
             headers: { 'Authorization' => 'Bearer test-reader-key' },
             body: hash_including(
-              model: 'llama-3.1-8b-instant',
+              model: 'qwen/qwen3.8-27b',
               messages: [{ role: 'user', content: 'Extract resume data' }],
               response_format: { type: 'json_object' }
             )
@@ -168,7 +168,11 @@ RSpec.describe GroqApiService do
     end
 
     context 'model retry' do
-      it 'tries the next model on a 5xx error and succeeds' do
+      it 'tries the next model on a 5xx error and succeeds (latex stage has two models)' do
+        latex_service = ClimateControl.modify('GROQ_API_KEY_LATEX' => 'latex-key') do
+          described_class.new(:latex, 'test-123')
+        end
+
         stub_request(:post, groq_url)
           .to_return(
             { status: 502, body: { error: { message: 'Bad Gateway' } }.to_json },
@@ -176,7 +180,7 @@ RSpec.describe GroqApiService do
               body: { choices: [{ message: { content: 'recovered' } }] }.to_json }
           )
 
-        result = service.make_request('test')
+        result = latex_service.make_request('Generate LaTeX', json_mode: false)
         expect(result).to eq('recovered')
       end
     end
@@ -200,7 +204,7 @@ RSpec.describe GroqApiService do
         stub_request(:post, groq_url)
           .with(
             headers: { 'Authorization' => 'Bearer polish-key' },
-            body: hash_including(model: 'llama-3.3-70b-versatile')
+            body: hash_including(model: 'qwen/qwen3.8-27b')
           )
           .to_return(
             status: 200,

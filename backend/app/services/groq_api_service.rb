@@ -4,21 +4,23 @@ class GroqApiService
   STAGE_CONFIGS = {
     reader: {
       key_env_names: %w[GROQ_API_KEY_READER GROQ_API_KEY_READER_2 GROQ_API_KEY_READER_3 GROQ_API_KEY_READER_4].freeze,
-      default_models: %w[llama-3.1-8b-instant llama-3.3-70b-versatile].freeze,
+      # JSON mode is required for extraction; qwen3.8 is the JSON-capable model
+      # available on this account (llama-3.x is no longer provisioned).
+      default_models: %w[qwen/qwen3.8-27b].freeze,
       json_mode: true,
       max_tokens: 4000,
       temperature: 0.1
     },
     polisher: {
       key_env_names: %w[GROQ_API_KEY_POLISHER GROQ_API_KEY_POLISHER_2 GROQ_API_KEY_POLISHER_3].freeze,
-      default_models: %w[llama-3.3-70b-versatile llama-3.1-8b-instant].freeze,
+      default_models: %w[qwen/qwen3.8-27b].freeze,
       json_mode: true,
       max_tokens: 6000,
       temperature: 0.3
     },
     latex: {
       key_env_names: %w[GROQ_API_KEY_LATEX GROQ_API_KEY_LATEX_2 GROQ_API_KEY_LATEX_3].freeze,
-      default_models: %w[llama-3.3-70b-versatile llama-3.1-8b-instant].freeze,
+      default_models: %w[openai/gpt-oss-120b qwen/qwen3.8-27b].freeze,
       json_mode: false,
       max_tokens: 4000,
       temperature: 0.2
