@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities -- prose-heavy legal page; escaping every apostrophe hurts readability */
 import { MetaFunction } from "@remix-run/node";
 import { motion } from "framer-motion";
 import { Link } from "@remix-run/react";

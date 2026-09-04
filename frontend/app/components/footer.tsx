@@ -15,7 +15,7 @@ export function Footer() {
           <Link to="/privacy" className="text-primary hover:underline hover:text-primary/80">
             Privacy Policy
           </Link>
-          . We're{' '}
+          . We&apos;re{' '}
           <a href="https://github.com/Souravsudow/Make-it-Sour-s" className="text-primary hover:underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
             open-source
           </a>{' '}

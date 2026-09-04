@@ -17,6 +17,20 @@ module Api
         sse = SSE.new(response.stream, retry: 3000)
         message_received = false
 
+        # Fast path: if the job already finished before this SSE connection
+        # opened (fast failure, or a reconnect after completion), deliver the
+        # final status immediately instead of blocking on Pub/Sub for the
+        # full timeout window.
+        current_status = $redis.get(status_key)
+        if current_status&.include?('completed') || current_status&.include?('Error')
+          Rails.logger.info("[SSE #{request_id}] Job already finished; delivering final status")
+          result = $redis.get(result_key)
+          sse.write(result ? { status: current_status, result: JSON.parse(result) } : { status: current_status })
+          $redis.del(status_key)
+          $redis.expire(result_key, 3600) if result
+          return
+        end
+
         # Subscribe to Redis Pub/Sub for real-time status updates.
         # Uses a dedicated connection so we don't block the shared $redis.
         subscriber = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'))

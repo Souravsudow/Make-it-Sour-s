@@ -7,33 +7,37 @@
 class RateLimitStore
   PREFIX = 'rate_limit:'
 
-  def initialize(client)
-    @client = client
+  # Resolve the Redis client at call time, NOT boot time. This initializer
+  # loads before config/initializers/redis.rb (alphabetical order), so $redis
+  # is still nil when this class is constructed — capturing it then would make
+  # every throttled request raise NoMethodError.
+  def client
+    $redis
   end
 
   def read(key)
-    val = @client.get(PREFIX + key.to_s)
+    val = client.get(PREFIX + key.to_s)
     val.nil? ? nil : val.to_s
   end
 
   def write(key, value, options = {})
     full_key = PREFIX + key.to_s
     if options[:expires_in]
-      @client.setex(full_key, options[:expires_in].to_i, value.to_s)
+      client.setex(full_key, options[:expires_in].to_i, value.to_s)
     else
-      @client.set(full_key, value.to_s)
+      client.set(full_key, value.to_s)
     end
   end
 
   def increment(key, count = 1, options = {})
     full_key = PREFIX + key.to_s
-    new_val = @client.incrby(full_key, count)
-    @client.expire(full_key, options[:expires_in].to_i) if options[:expires_in]
+    new_val = client.incrby(full_key, count)
+    client.expire(full_key, options[:expires_in].to_i) if options[:expires_in]
     new_val
   end
 
   def delete(key)
-    @client.del(PREFIX + key.to_s)
+    client.del(PREFIX + key.to_s)
   end
 
   def clear
@@ -41,7 +45,7 @@ class RateLimitStore
   end
 end
 
-Rack::Attack.cache.store = RateLimitStore.new($redis)
+Rack::Attack.cache.store = RateLimitStore.new
 
 # ---------- Throttles ----------
 

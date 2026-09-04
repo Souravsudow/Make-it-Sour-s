@@ -65,3 +65,7 @@ frontend/coverage/
 *~
 *.bak
 *.tmp
+# Backend coverage output (regenerated on every test run)
+backend/coverage/
+backend/coverage/*
+backend/dump.rdb

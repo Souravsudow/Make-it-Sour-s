@@ -37,7 +37,7 @@ RSpec.configure do |config|
   # Tag a spec group with `:redis` to use the real $redis global variable
   config.before(:each) do |example|
     unless example.metadata[:redis]
-      $redis = instance_double(Redis, get: nil, set: true, expire: true, del: true)
+      $redis = instance_double(Redis, get: nil, set: true, expire: true, del: true, incrby: 1, setex: true)
     end
   end
 end

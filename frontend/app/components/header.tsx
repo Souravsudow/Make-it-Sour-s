@@ -12,7 +12,7 @@ export function Header() {
             transition={{ duration: 0.5 }}
           >
             <Link to="/" className="font-bold text-2xl hover:opacity-90 transition-opacity text-white">
-              Make it <span className="text-primary glow-text">Sour's</span>
+              Make it <span className="text-primary glow-text">Sour&apos;s</span>
             </Link>
           </motion.div>
         </div>

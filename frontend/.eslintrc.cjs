@@ -71,6 +71,14 @@ module.exports = {
         "plugin:import/recommended",
         "plugin:import/typescript",
       ],
+      rules: {
+        // lucide-react's exports map declares `types`/`require` subpaths
+        // (./dist/icons/*.d.ts, ./dist/cjs/*) that don't ship in v0.473, so the
+        // resolver can't verify these deep imports — but they're real and used
+        // deliberately: importing icons from the main entry eagerly loads all
+        // ~1500 icons and crashes Netlify functions with EMFILE.
+        "import/no-unresolved": ["error", { ignore: ["^lucide-react/icons/"] }],
+      },
     },
 
     // Node
