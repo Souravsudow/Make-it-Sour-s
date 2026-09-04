@@ -7,7 +7,11 @@ set -e
 bundle exec sidekiq -C config/sidekiq.yml &
 SIDEKIQ_PID=$!
 
-./bin/thrust ./bin/rails server -b 0.0.0.0 -p "${PORT:-8080}" &
+# Run Puma directly on $PORT (Render and Cloud Run inject it and route
+# traffic straight to it). Thruster is not used: it listens on :80 and
+# proxies to localhost:3000 by default, which doesn't match $PORT and
+# breaks deploys on Render.
+./bin/rails server -b 0.0.0.0 -p "${PORT:-8080}" &
 RAILS_PID=$!
 
 cleanup() {
