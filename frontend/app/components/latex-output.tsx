@@ -1,10 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { Button } from '~/components/ui/button';
-import Copy from 'lucide-react/icons/copy';
-import Download from 'lucide-react/icons/download';
-import ExternalLink from 'lucide-react/icons/external-link';
+import { Copy, Download, ExternalLink } from 'lucide-react';
 import { cn } from '~/lib/utils';
 import { useLoaderData } from '@remix-run/react';
 import { ClientOnly } from 'remix-utils/client-only';

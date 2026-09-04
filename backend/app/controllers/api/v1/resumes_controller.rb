@@ -1,45 +1,60 @@
+require 'timeout'
+
 module Api
   module V1
     class ResumesController < ApplicationController
       skip_before_action :verify_authenticity_token
 
+      ALLOWED_TEMPLATES = %w[jakes minimal modern].freeze
+      STATUS_TTL = 3600
+
       def create
-        file = params[:file]
-        if file.nil?
-          render json: { error: 'No file provided' }, status: :bad_request
-          return
-        end
-        unless file.respond_to?(:content_type) && file.respond_to?(:size)
+        template = normalize_template(params[:template])
+
+        if params[:file].present?
+          file = params[:file]
+          unless file.respond_to?(:content_type) && file.respond_to?(:size)
+            render json: { error: 'No file provided' }, status: :bad_request
+            return
+          end
+          if file.size > max_upload_size
+            render json: { error: "File too large. Maximum size is #{max_upload_size / 1.megabyte}MB." }, status: :content_too_large
+            return
+          end
+
+          begin
+            file_content = file.read
+            content_type = file.content_type
+            original_filename = file.original_filename
+          rescue => e
+            render json: { error: "Failed to read file: #{e.message}" }, status: :bad_request
+            return
+          end
+        elsif (content = params[:content].presence)
+          if content.bytesize > max_upload_size
+            render json: { error: 'Content too large. Maximum size is 10MB.' }, status: :content_too_large
+            return
+          end
+
+          file_content = content
+          content_type = 'text/plain'
+          original_filename = 'pasted-resume.txt'
+        else
           render json: { error: 'No file provided' }, status: :bad_request
           return
         end
 
         request_id = SecureRandom.uuid
         $redis.set("resume_status:#{request_id}", "Starting resume formatting process...")
+        $redis.expire("resume_status:#{request_id}", STATUS_TTL)
 
-        begin
-          file_content = file.read
-          content_type = file.content_type
-          original_filename = file.original_filename
-        rescue => e
-          render json: { error: "Failed to read file: #{e.message}" }, status: :bad_request
-          return
-        end
-
-        Thread.new do
-          begin
-            latex_content = ResumeFormatterService.new(
-              content: file_content,
-              content_type: content_type,
-              original_filename: original_filename,
-              request_id: request_id
-            ).format
-            $redis.set("resume_status:#{request_id}", "Resume formatting completed successfully!")
-            $redis.set("resume_result:#{request_id}", { latex: latex_content }.to_json)
-          rescue StandardError => e
-            $redis.set("resume_status:#{request_id}", "Error: #{e.message}")
-          end
-        end
+        ResumeProcessingJob.perform_later(
+          content: file_content,
+          content_type: content_type,
+          original_filename: original_filename,
+          request_id: request_id,
+          template: template
+        )
 
         render json: { request_id: request_id }, status: :accepted
       rescue StandardError => e
@@ -78,7 +93,17 @@ module Api
           tex_file = File.join(dir, 'resume.tex')
           File.write(tex_file, latex)
 
-          output = Dir.chdir(dir) { `pdflatex -interaction=nonstopmode -halt-on-error resume.tex 2>&1` }
+          output = nil
+          begin
+            Timeout.timeout(ENV.fetch('PDF_COMPILE_TIMEOUT', 60).to_i) do
+              output = Dir.chdir(dir) { `pdflatex -interaction=nonstopmode -halt-on-error -no-shell-escape resume.tex 2>&1` }
+            end
+          rescue Timeout::Error
+            Rails.logger.error("PDF compilation timed out for request #{request_id}")
+            render json: { error: 'PDF compilation timed out' }, status: :internal_server_error
+            return
+          end
+
           unless $?.success?
             Rails.logger.error("PDF compilation failed: #{output}")
             render json: { error: 'Failed to compile PDF' }, status: :internal_server_error
@@ -105,6 +130,16 @@ module Api
         ensure
           FileUtils.remove_entry dir if dir
         end
+      end
+
+      private
+
+      def normalize_template(value)
+        ALLOWED_TEMPLATES.include?(value.to_s) ? value.to_s : 'jakes'
+      end
+
+      def max_upload_size
+        ENV.fetch('MAX_UPLOAD_BYTES', (10.megabytes).to_s).to_i
       end
     end
   end

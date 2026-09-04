@@ -8,6 +8,7 @@ import { Button } from '~/components/ui/button';
 import { Header } from '~/components/header';
 import { BeforeAfter } from '~/components/before-after';
 import { FileUpload } from '~/components/file-upload';
+import { ProgressPipeline } from '~/components/progress-pipeline';
 import { StatusMessage } from '~/components/status-message';
 import { Footer } from '~/components/footer';
 
@@ -39,14 +40,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
-  const file = formData.get('file') as File;
+  const file = formData.get('file') as File | null;
+  const content = formData.get('content') as string | null;
+  const template = (formData.get('template') as string) || 'jakes';
 
-  if (!file) {
-    return json<ActionData>({ error: 'No file provided' }, { status: 400 });
+  if (!file && !content) {
+    return json<ActionData>({ error: 'No resume provided' }, { status: 400 });
   }
 
   try {
-    const response = await convertResume(file, getApiOrigin(request));
+    const response = await convertResume(file, content, template, getApiOrigin(request));
     return json<ActionData>({ request_id: response.request_id });
   } catch (error) {
     return json<ActionData>(
@@ -66,89 +69,68 @@ export default function Index() {
   const [latex, setLatex] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Action data updated:', actionData);
     if (actionData?.request_id) {
-      console.log('Setting request ID:', actionData.request_id);
       setRequestId(actionData.request_id);
     }
   }, [actionData]);
 
   useEffect(() => {
-    console.log('SSE Effect running:', {
-      navigationState: navigation.state,
-      requestId,
-      hasEventSource: !!eventSourceRef.current,
-      actionData: !!actionData
-    });
+    if (!requestId) return;
 
-    let eventSource: EventSource | null = null;
+    const eventSourceUrl = new URL(`${API_ORIGIN}/api/v1/status/events`);
+    eventSourceUrl.searchParams.set('request_id', requestId);
 
-    if (requestId && !eventSourceRef.current) {
-      const eventSourceUrl = new URL(`${API_ORIGIN}/api/v1/status/events`);
-      eventSourceUrl.searchParams.set('request_id', requestId);
+    const eventSource = new EventSource(eventSourceUrl.toString());
+    eventSourceRef.current = eventSource;
+    let closed = false;
+    let errorCount = 0;
 
-      console.log('Creating new EventSource connection:', {
-        url: eventSourceUrl.toString()
-      });
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      eventSource.close();
+      eventSourceRef.current = null;
+    };
 
-      eventSource = new EventSource(eventSourceUrl.toString());
-      eventSourceRef.current = eventSource;
+    const handleMessage = (event: MessageEvent) => {
+      errorCount = 0;
+      let data: { status?: string; result?: { latex?: string } };
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        setStatus('An error occurred while processing your request');
+        close();
+        return;
+      }
 
-      const handleMessage = (event: MessageEvent) => {
-        console.log('Received SSE message:', event.data);
-        try {
-          const data = JSON.parse(event.data);
-          setStatus(data.status);
+      if (data.status) setStatus(data.status);
 
-          if (data.result?.latex) {
-            console.log('Received final result, updating latex state');
-            setLatex(data.result.latex);
-          }
+      if (data.result?.latex) {
+        setLatex(data.result.latex);
+      }
 
-          if (data.status.includes("completed") || data.status.includes("Error")) {
-            console.log('Closing connection due to completion/error');
-            eventSource?.close();
-            eventSourceRef.current = null;
-          }
-        } catch (error) {
-          console.error('Failed to parse SSE message:', error);
-          setStatus('An error occurred while processing your request');
-          eventSource?.close();
-          eventSourceRef.current = null;
-        }
-      };
+      if (data.status?.includes('completed') || data.status?.includes('Error')) {
+        close();
+      }
+    };
 
-      const handleError = (error: Event) => {
-        console.error('SSE connection error:', error);
-        eventSource?.close();
-        eventSourceRef.current = null;
-        setRequestId(null);
-      };
+    const handleError = () => {
+      // EventSource reconnects automatically after the server's retry delay.
+      // Give up only after sustained failures so we don't loop forever.
+      errorCount += 1;
+      if (errorCount >= 20) {
+        close();
+        setStatus('Connection lost. Please try again.');
+      }
+    };
 
-      const handleOpen = () => {
-        console.log('SSE connection opened successfully');
-      };
-
-      eventSource.addEventListener('message', handleMessage);
-      eventSource.addEventListener('error', handleError);
-      eventSource.addEventListener('open', handleOpen);
-
-      return () => {
-        console.log('Cleaning up SSE connection and listeners');
-        eventSource?.removeEventListener('message', handleMessage);
-        eventSource?.removeEventListener('error', handleError);
-        eventSource?.removeEventListener('open', handleOpen);
-        eventSource?.close();
-        eventSourceRef.current = null;
-      };
-    }
+    eventSource.addEventListener('message', handleMessage);
+    eventSource.addEventListener('error', handleError);
 
     return () => {
-      if (eventSourceRef.current) {
-        console.log('Cleaning up previous SSE connection');
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      close();
+      eventSource.removeEventListener('message', handleMessage);
+      eventSource.removeEventListener('error', handleError);
     };
   }, [requestId, API_ORIGIN]);
 
@@ -157,7 +139,6 @@ export default function Index() {
       setStatus('');
       setLatex(null);
       if (eventSourceRef.current) {
-        console.log('Cleaning up previous SSE connection before new submission');
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
@@ -192,7 +173,7 @@ export default function Index() {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="text-xl text-gray-300 max-w-3xl mx-auto mt-4"
             >
-              Transform your SWE resume into Sour's elegant LaTeX template with just one click. <span className="font-bold text-white">No LaTeX knowledge required</span>.
+              Transform your SWE resume into Sour&apos;s elegant LaTeX template with just one click. <span className="font-bold text-white">No LaTeX knowledge required</span>.
             </motion.p>
           </div>
 
@@ -289,7 +270,11 @@ export default function Index() {
           </AnimatePresence>
 
           <div className="text-center">
-            <StatusMessage error={actionData?.error} status={status} />
+            {latex ? null : status && !actionData?.error ? (
+              <ProgressPipeline status={status} error={actionData?.error} />
+            ) : (
+              <StatusMessage error={actionData?.error} status={status} />
+            )}
           </div>
         </div>
       </main>

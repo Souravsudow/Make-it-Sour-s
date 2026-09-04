@@ -7,18 +7,19 @@ class ResumeFormatterService
   ].freeze
 
   # Initialize with content string instead of file object
-  def initialize(content:, content_type:, original_filename:, request_id: nil)
+  def initialize(content:, content_type:, original_filename:, request_id: nil, template: 'jakes')
     @content = content
     @content_type = content_type
     @original_filename = original_filename
     @request_id = request_id
+    @template = template
     validate_content!
   end
 
   def format
     text = extract_text_from_content
-    gemini_service = GeminiApiService.new(@request_id)
-    gemini_service.format_resume(text)
+    pipeline = ResumePipelineService.new(@request_id, template: @template)
+    pipeline.format_resume(text)
   rescue StandardError => e
     handle_error(e)
   end

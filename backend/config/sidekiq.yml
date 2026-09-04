@@ -1,0 +1,9 @@
+# Configuration for Sidekiq
+# Pro tip: use `bundle exec sidekiq -C config/sidekiq.yml` to start
+:queues:
+  - [critical, 5]
+  - [default, 2]
+  - [low, 1]
+
+:concurrency: 5
+:max_retries: 3

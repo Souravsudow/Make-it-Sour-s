@@ -4,94 +4,80 @@ module Api
       include ActionController::Live
 
       def events
-        Rails.logger.info("Starting SSE connection...")
-        response.headers['Content-Type'] = 'text/event-stream'
-        response.headers['Last-Modified'] = Time.now.httpdate
-        response.headers['Cache-Control'] = 'no-cache'
-        response.headers['Connection'] = 'keep-alive'
-        
         request_id = params[:request_id]
+        channel = "resume:#{request_id}"
+        timeout = ENV.fetch('SSE_TIMEOUT_SECONDS', 180).to_i
         status_key = "resume_status:#{request_id}"
         result_key = "resume_result:#{request_id}"
-        Rails.logger.info("Monitoring status key: #{status_key}")
-        
-        sse = SSE.new(response.stream, retry: 300)
-        
+
+        Rails.logger.info("[SSE #{request_id}] Starting connection")
+        response.headers['Content-Type'] = 'text/event-stream'
+        response.headers['Cache-Control'] = 'no-cache'
+
+        sse = SSE.new(response.stream, retry: 3000)
+        message_received = false
+
+        # Subscribe to Redis Pub/Sub for real-time status updates.
+        # Uses a dedicated connection so we don't block the shared $redis.
+        subscriber = Redis.new(url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'))
+
         begin
-          # Send initial status if it exists
-          if initial_status = $redis.get(status_key)
-            Rails.logger.info("Found initial status: #{initial_status}")
-            sse.write({ status: initial_status })
-          end
+          subscriber.subscribe_with_timeout(timeout, channel) do |on|
+            on.message do |_ch, msg|
+              data = JSON.parse(msg)
+              sse.write(data)
+              message_received = true
 
-          # Allow enough time for both model calls and PDF-size resume prompts.
-          timeout = ENV.fetch('SSE_TIMEOUT_SECONDS', 180).to_i
-          start_time = Time.now
-          
-          while Time.now - start_time < timeout
-            current_status = $redis.get(status_key)
-            
-            if current_status && current_status != initial_status
-              Rails.logger.info("Found status update: #{current_status}")
-              
-              # Check if this is a completion message
-              if current_status.include?("completed")
-                if result = $redis.get(result_key)
-                  Rails.logger.info("Found result, sending completion message with result")
-                  sse.write({ 
-                    status: current_status,
-                    result: JSON.parse(result)
-                  })
-                else
-                  Rails.logger.error("No result found for completed status")
-                  sse.write({ status: current_status })
-                end
+              # Stop listening on completion or error
+              if data['status']&.include?('completed') || data['status']&.include?('Error')
+                subscriber.unsubscribe(channel)
                 break
-              elsif current_status.include?("Error")
-                Rails.logger.info("Sending error status")
-                sse.write({ status: current_status })
-                break
-              else
-                # Regular status update
-                sse.write({ status: current_status })
               end
-              
-              initial_status = current_status
             end
-            
-            sleep 0.5
           end
-
-          current_status = $redis.get(status_key)
-          result = $redis.get(result_key)
-
-          if current_status&.include?("completed") && result
-            Rails.logger.info("Sending completion message after SSE timeout loop")
-            sse.write({
-              status: current_status,
-              result: JSON.parse(result)
-            })
-          elsif current_status&.include?("Error")
-            Rails.logger.info("Sending error status after SSE timeout loop")
-            sse.write({ status: current_status })
-          end
-        rescue IOError, ClientDisconnected => e
-          Rails.logger.error("Client disconnected from SSE: #{e.message}")
+        rescue Redis::TimeoutError
+          Rails.logger.warn("[SSE #{request_id}] Pub/Sub timed out after #{timeout}s")
+        rescue Redis::BaseConnectionError => e
+          Rails.logger.error("[SSE #{request_id}] Pub/Sub connection error: #{e.message}")
+        rescue JSON::ParserError => e
+          Rails.logger.error("[SSE #{request_id}] Invalid Pub/Sub message: #{e.message}")
+        rescue IOError, ClientDisconnected
+          # Client disconnected — normal
         rescue StandardError => e
-          Rails.logger.error("Error in SSE connection: #{e.message}")
-          Rails.logger.error(e.backtrace.join("\n"))
+          Rails.logger.error("[SSE #{request_id}] Pub/Sub error: #{e.message}")
         ensure
-          Rails.logger.info("Cleaning up SSE connection...")
-          sse.close
-          # Only delete the status and result if we completed successfully
-          if $redis.get(status_key)&.include?("completed")
-            $redis.del(status_key)
-            # Set expiry on result instead of deleting immediately
-            $redis.expire(result_key, 3600) # Keep result for 1 hour after completion
-          end
-          response.stream.close
+          subscriber.close rescue nil
         end
+
+        # Fallback: if no Pub/Sub message arrived (job already completed
+        # before we subscribed), check Redis for the current result.
+        unless message_received
+          Rails.logger.info("[SSE #{request_id}] Checking Redis fallback")
+          status = $redis.get(status_key)
+          if status
+            if status.include?('completed')
+              result = $redis.get(result_key)
+              sse.write(result ? { status: status, result: JSON.parse(result) } : { status: status })
+            else
+              sse.write({ status: status })
+            end
+          end
+        end
+
+        # Cleanup completed status
+        if $redis.get(status_key)&.include?('completed')
+          $redis.del(status_key)
+          $redis.expire(result_key, 3600)
+        end
+      rescue IOError, ClientDisconnected
+        # Client disconnected
+      rescue StandardError => e
+        Rails.logger.error("[SSE #{request_id}] SSE error: #{e.message}")
+      ensure
+        sse.close rescue nil
+        response.stream.close rescue nil
+        Rails.logger.info("[SSE #{request_id}] Connection closed")
       end
     end
   end
-end 
+end

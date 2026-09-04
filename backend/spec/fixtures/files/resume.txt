@@ -1,0 +1,24 @@
+John Doe
+john.doe@example.com | 123-456-7890 | San Francisco, CA
+
+SUMMARY
+Software engineer with 5+ years of experience building scalable web applications.
+
+EXPERIENCE
+Senior Software Engineer, Google (2021 - Present)
+- Built a distributed caching layer that reduced p95 latency by 40%
+- Led a team of 4 engineers to migrate legacy services to Kubernetes
+- Improved test coverage from 60% to 90% across 12 services
+
+Software Engineer, Netflix (2019 - 2021)
+- Engineered real-time recommendation pipeline processing 1M+ events/day
+- Collaborated with data science to ship A/B testing framework
+
+EDUCATION
+B.S. Computer Science, UC Berkeley (2015 - 2019)
+- GPA: 3.8/4.0
+
+SKILLS
+Languages: Python, Ruby, TypeScript, Go
+Frameworks: Rails, React, FastAPI
+Tools: Docker, Kubernetes, AWS, Redis

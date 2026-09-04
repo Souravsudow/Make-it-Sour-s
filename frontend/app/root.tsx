@@ -1,4 +1,4 @@
-import { json, MetaFunction, type LinksFunction, type LoaderFunctionArgs } from '@remix-run/node';
+import { json, MetaFunction, type LinksFunction } from '@remix-run/node';
 import {
   Links,
   LiveReload,
@@ -24,21 +24,16 @@ export const links: LinksFunction = () => [
   { rel: 'icon', href: '/favicon.ico?v=5' },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader() {
   const ENV = {
     API_URL: process.env.API_URL || 'http://localhost:3000',
   };
-  
+
   return json({ ENV });
 }
 
 export default function App() {
   const { ENV } = useLoaderData<typeof loader>();
-
-  // Set window.ENV as soon as we have the data
-  if (typeof window !== 'undefined') {
-    window.ENV = ENV;
-  }
 
   return (
     <html lang="en" className="min-h-screen">

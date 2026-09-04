@@ -1,6 +1,17 @@
-export async function convertResume(file: File, apiOrigin: string) {
+export async function convertResume(
+  file: File | null,
+  content: string | null,
+  template: string,
+  apiOrigin: string
+) {
   const formData = new FormData();
-  formData.append('file', file);
+  if (file) {
+    formData.append('file', file);
+  }
+  if (content) {
+    formData.append('content', content);
+  }
+  formData.append('template', template);
 
   const response = await fetch(`${apiOrigin}/api/v1/resumes`, {
     method: 'POST',
@@ -13,7 +24,7 @@ export async function convertResume(file: File, apiOrigin: string) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to convert resume');
     } else {
-      const text = await response.text();
+      await response.text();
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please try again later.');
       } else if (response.status === 500) {
@@ -26,4 +37,4 @@ export async function convertResume(file: File, apiOrigin: string) {
 
   const data = await response.json();
   return { latex: data.latex, request_id: data.request_id };
-} 
+}

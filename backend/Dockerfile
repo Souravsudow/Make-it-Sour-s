@@ -14,19 +14,19 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages
+# Install only the LaTeX packages needed for PDF compilation (~400MB vs 4GB for texlive-full)
+# Only pdflatex is used — no xelatex or latexmk needed
+# cm-super provides T1-encoded Computer Modern fonts required by \usepackage[T1]{fontenc}
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     curl \
     libjemalloc2 \
     libvips \
     sqlite3 \
-    texlive-full \
+    texlive-latex-base \
     texlive-latex-extra \
     texlive-fonts-recommended \
-    texlive-fonts-extra \
-    texlive-xetex \
-    latexmk \
+    cm-super \
     && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Set production environment
@@ -76,6 +76,7 @@ USER 1000:1000
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
-# Start server via Thruster by default, this can be overwritten at runtime
+# Start the Rails server (via Thruster) AND the Sidekiq worker so that
+# ResumeProcessingJob actually gets processed in production.
 EXPOSE 8080
-CMD ["bash", "-lc", "exec ./bin/thrust ./bin/rails server -b 0.0.0.0 -p ${PORT:-8080}"]
+CMD ["bash", "-lc", "exec ./bin/start"]

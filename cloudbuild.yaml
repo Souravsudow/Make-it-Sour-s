@@ -1,4 +1,14 @@
+
 steps:
+  # Run backend tests before building (use full Ruby image for native gem compilation)
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker run --rm -v "$(pwd)/backend:/app" -w /app ruby:3.4.1 \
+          bash -c "bundle install --quiet && bundle exec rspec --format progress"
+
   # Build and push backend image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/makeitjakes-backend', './backend']
@@ -25,9 +35,15 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'RAILS_ENV=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,REDIS_URL=redis://10.188.33.171:6379'
+      - 'RAILS_ENV=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true'
       - '--set-secrets'
-      - 'RAILS_MASTER_KEY=rails-master-key:latest,SECRET_KEY_BASE=rails-secret-key-base:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest,FIREWORKS_API_KEY=fireworks-api-key:latest,GEMINI_API_KEY=gemini-api-key:latest'
+      - 'REDIS_URL=redis-url:latest,RAILS_MASTER_KEY=rails-master-key:latest,SECRET_KEY_BASE=rails-secret-key-base:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest,FIREWORKS_API_KEY=fireworks-api-key:latest,GEMINI_API_KEY=gemini-api-key:latest'
+      - '--set-secrets'
+      - 'GROQ_API_KEY_READER=groq-api-key-reader:latest,GROQ_API_KEY_READER_2=groq-api-key-reader-2:latest,GROQ_API_KEY_READER_3=groq-api-key-reader-3:latest'
+      - '--set-secrets'
+      - 'GROQ_API_KEY_POLISHER=groq-api-key-polisher:latest,GROQ_API_KEY_POLISHER_2=groq-api-key-polisher-2:latest'
+      - '--set-secrets'
+      - 'GROQ_API_KEY_LATEX=groq-api-key-latex:latest,GROQ_API_KEY_LATEX_2=groq-api-key-latex-2:latest'
 
   # Deploy frontend to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'

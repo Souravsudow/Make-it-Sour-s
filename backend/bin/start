@@ -1,0 +1,22 @@
+#!/bin/bash
+# Production entrypoint: runs the Rails web server AND the Sidekiq worker in
+# the same container. Without the worker, ResumeProcessingJob is enqueued to
+# Redis but never processed.
+set -e
+
+bundle exec sidekiq -C config/sidekiq.yml &
+SIDEKIQ_PID=$!
+
+./bin/thrust ./bin/rails server -b 0.0.0.0 -p "${PORT:-8080}" &
+RAILS_PID=$!
+
+cleanup() {
+  kill "$RAILS_PID" "$SIDEKIQ_PID" 2>/dev/null || true
+  wait "$RAILS_PID" "$SIDEKIQ_PID" 2>/dev/null || true
+}
+trap cleanup SIGTERM SIGINT
+
+# Wait for either process to exit, then shut the other one down
+wait -n "$RAILS_PID" "$SIDEKIQ_PID"
+cleanup
+exit 1
