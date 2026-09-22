@@ -7,10 +7,27 @@
 -- to the `process-resume` Edge Function → the function runs the
 -- Groq pipeline (extract → polish → LaTeX) and updates the row.
 -- Realtime pushes every UPDATE to the browser automatically.
+--
+-- This script is IDEMPOTENT and TRANSACTION-SAFE — you can paste
+-- the whole thing into the Supabase Dashboard SQL Editor.
+-- Fill in the two values in the "STEP 2" block at the bottom.
 -- ============================================================
 
 create extension if not exists pg_net;
 create extension if not exists pgcrypto;
+
+-- ─── Settings (private schema — NOT exposed via the API) ───
+-- The Supabase SQL Editor runs statements inside a transaction
+-- block, so `alter system` is not allowed there. We store the
+-- webhook settings in a table in the `private` schema instead:
+-- PostgREST only exposes `public`, so these values are invisible
+-- to the anon/authenticated API roles.
+create schema if not exists private;
+
+create table if not exists private.app_settings (
+  key   text primary key,
+  value text not null
+);
 
 -- ─── Table ────────────────────────────────────────────────
 create table if not exists public.resumes (
@@ -71,26 +88,35 @@ create policy "anon can read any resume by id"
 -- (the Edge Function) can modify rows.
 
 -- ─── Realtime ─────────────────────────────────────────────
-alter publication supabase_realtime add table public.resumes;
+-- Idempotent: adding an already-published table would error.
+do $$
+begin
+  alter publication supabase_realtime add table public.resumes;
+exception
+  when duplicate_object then null; -- already in the publication
+end $$;
 
 -- ─── Webhook trigger → Edge Function ──────────────────────
 -- Fires on INSERT and calls the process-resume Edge Function via
--- pg_net (async HTTP). SUPABASE_FUNCTION_URL / SERVICE_ROLE are
--- injected by Supabase when the migration runs through the CLI
--- (supabase db push). For the Dashboard SQL editor, run the
--- GRANTs below manually or use `supabase db push`.
+-- pg_net (async HTTP). Reads its settings from private.app_settings
+-- (see STEP 2 below). SECURITY DEFINER lets it read the private
+-- table regardless of role grants.
 create or replace function public.handle_new_resume()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, private
 as $$
 declare
-  v_project_url text := current_setting('app.settings.function_url', true);
-  v_service_key text := current_setting('app.settings.service_role_key', true);
+  v_project_url text;
+  v_service_key text;
 begin
-  if v_project_url is null or v_service_key is null then
-    -- Not configured (e.g. local test insert); skip silently.
+  select value into v_project_url from private.app_settings where key = 'function_url';
+  select value into v_service_key from private.app_settings where key = 'service_role_key';
+
+  -- Skip silently if not configured yet or still a placeholder.
+  if v_project_url is null or v_service_key is null
+     or v_project_url like '%YOUR_%' or v_service_key like '%YOUR_%' then
     return new;
   end if;
 
@@ -113,14 +139,12 @@ create trigger on_resume_created
   after insert on public.resumes
   for each row execute function public.handle_new_resume();
 
--- ─── One-time setup for the webhook settings ──────────────
--- Run these in the SQL editor (or via supabase db push with a
--- config) with your project ref and service_role key:
---
---   alter system set app.settings.function_url = 'https://YOUR_PROJECT_REF.supabase.co';
---   alter system set app.settings.service_role_key = 'YOUR_SERVICE_ROLE_KEY';
---   select pg_reload_conf();
---
--- Alternatively, if `alter system` is not permitted on your
--- plan, insert into supabase settings Vault and read via
--- vault.decrypted_secrets. See README for instructions.
+-- ============================================================
+-- STEP 2 — EDIT THESE TWO VALUES, THEN RUN THE WHOLE SCRIPT
+-- ============================================================
+-- service_role key: Dashboard → Project Settings → API →
+-- `service_role` secret (NOT the publishable/anon key).
+insert into private.app_settings (key, value) values
+  ('function_url',     'https://YOUR_PROJECT_REF.supabase.co'),
+  ('service_role_key', 'YOUR_SERVICE_ROLE_KEY')
+on conflict (key) do update set value = excluded.value;
