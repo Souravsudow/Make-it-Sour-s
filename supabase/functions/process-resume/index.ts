@@ -36,7 +36,7 @@ interface ResumeRow {
 interface WebhookPayload {
   type: string;
   table: string;
-  record: ResumeRow;
+  record: { id: string };
 }
 
 // ─── Groq call with key rotation + model fallback (port of make_request) ───
@@ -46,7 +46,8 @@ async function groqRequest(stage: Stage, prompt: string): Promise<string> {
   const apiKeys = resolveApiKeys(stage);
   const models = resolveModels(stage);
 
-  let lastError: Error | null = null;
+  let lastStatus = 0;
+  let lastMessage = 'no attempts made';
 
   for (const apiKey of apiKeys) {
     for (const model of models) {
@@ -72,34 +73,40 @@ async function groqRequest(stage: Stage, prompt: string): Promise<string> {
 
         if (!resp.ok) {
           const errBody = await resp.json().catch(() => null);
-          const message = extractErrorMessage(errBody);
+          lastStatus = resp.status;
+          lastMessage = extractErrorMessage(errBody);
 
-          if (isKeyRotationError(resp.status, message)) {
-            console.warn(`Groq ${stage}: key failed (${resp.status}), trying next key: ${message}`);
+          if (isKeyRotationError(resp.status, lastMessage)) {
+            console.warn(`Groq ${stage}: key failed (${resp.status}): ${lastMessage}`);
             break; // next key
           }
-          if (isRetryableError(resp.status, message)) {
-            console.warn(`Groq ${stage}: model ${model} retryable error (${resp.status}): ${message}`);
+          if (isRetryableError(resp.status, lastMessage)) {
+            console.warn(`Groq ${stage}: model ${model} retryable error (${resp.status}): ${lastMessage}`);
             continue; // next model
           }
-          throw new Error(friendlyError(stage, resp.status, message));
+          throw new Error(friendlyError(stage, resp.status, lastMessage));
         }
 
         const data = await resp.json();
         const choices = data?.choices ?? [];
-        if (choices.length === 0) throw new Error(`Empty response from Groq ${stage}`);
+        if (choices.length === 0) {
+          lastMessage = 'empty choices array';
+          throw new Error(`Groq ${stage}: empty response`);
+        }
 
         return cleanOutput(choices[0]?.message?.content ?? '');
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        // Errors thrown intentionally (friendlyError) bubble up; fetch
-        // failures just move to the next model/key.
-        if (lastError.message.startsWith('Groq ')) throw lastError;
+        // Friendly errors (starting with "Groq ") are final — rethrow.
+        if (error instanceof Error && error.message.startsWith('Groq ')) throw error;
+        lastMessage = `network error: ${error instanceof Error ? error.message : String(error)}`;
+        console.warn(`Groq ${stage}: ${lastMessage}`);
       }
     }
   }
 
-  throw lastError ?? new Error(`Groq ${stage}: No response from any key/model`);
+  throw new Error(
+    `Groq ${stage}: all attempts failed (last status ${lastStatus}): ${lastMessage}`
+  );
 }
 
 // ─── Pipeline ───────────────────────────────────────────────────────────────
@@ -193,7 +200,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  let payload: WebhookPayload;
+  let payload: { record?: { id?: string }; id?: string };
   try {
     payload = await req.json();
   } catch {
@@ -203,9 +210,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  const row = payload?.record;
-  if (!row?.id || !row.resume_text) {
-    return new Response(JSON.stringify({ error: 'Missing record id or resume_text' }), {
+  // The pg_net trigger sends only { record: { id } } — the function fetches
+  // the full row itself (smaller webhook payload, always fresh data).
+  const id = payload?.record?.id ?? payload?.id;
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'Missing record id' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -214,11 +223,31 @@ Deno.serve(async (req) => {
   // Fire-and-forget so pg_net's 5s timeout never kills a long pipeline.
   // EdgeRuntime.waitUntil keeps the isolate alive after we return 202.
   EdgeRuntime.waitUntil(
-    runPipeline({
-      id: row.id,
-      template: row.template ?? 'jakes',
-      resume_text: row.resume_text,
-    }).catch((e) => console.error('Unhandled pipeline failure:', e))
+    (async () => {
+      try {
+        const admin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+          { auth: { persistSession: false } }
+        );
+        const { data: row, error } = await admin
+          .from('resumes')
+          .select('id, template, resume_text')
+          .eq('id', id)
+          .maybeSingle();
+        if (error || !row) {
+          console.error(`Could not load resume row ${id}: ${error?.message ?? 'not found'}`);
+          return;
+        }
+        await runPipeline({
+          id: row.id,
+          template: row.template ?? 'jakes',
+          resume_text: row.resume_text,
+        });
+      } catch (e) {
+        console.error('Unhandled pipeline failure:', e);
+      }
+    })()
   );
 
   return new Response(JSON.stringify({ ok: true }), {
