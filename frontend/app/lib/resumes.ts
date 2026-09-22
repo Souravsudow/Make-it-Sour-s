@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { getSupabase } from './supabase';
 
 let workerSrcPromise: Promise<string> | null = null;
 
@@ -117,7 +117,7 @@ export async function createResume(
     );
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('resumes')
     .insert({ resume_text: resumeText, template })
     .select('id')
@@ -135,7 +135,7 @@ export function subscribeToResume(
   id: string,
   onUpdate: (row: ResumeRow) => void
 ): () => void {
-  const channel = supabase
+  const channel = getSupabase()
     .channel(`resume:${id}`)
     .on(
       'postgres_changes',
@@ -152,7 +152,7 @@ export function subscribeToResume(
     .subscribe();
 
   return () => {
-    void supabase.removeChannel(channel);
+    void getSupabase().removeChannel(channel);
   };
 }
 
@@ -161,7 +161,7 @@ export function subscribeToResume(
  * before the realtime subscription connected).
  */
 export async function fetchResume(id: string): Promise<ResumeRow | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('resumes')
     .select('id, status, template, latex, error, person_name')
     .eq('id', id)
