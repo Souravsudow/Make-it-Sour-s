@@ -2,35 +2,36 @@
 
 ### Transform Any Resume Into a World-Class SWE Resume
 
-**Make It Sour's** is an AI-powered resume transformation platform that converts any resume into the industry-renowned **Jake's Resume** format using AI processing, a live progress pipeline, and PDF preview generation.
+**Make It Sour's** is an AI-powered resume transformation platform that converts any resume into the industry-renowned **Jake's Resume** format using AI processing, a live progress pipeline, and LaTeX output.
 
 ---
 
 ## ✨ Key Features
 
-* **AI Resume Conversion** — upload a PDF, DOC, DOCX, or TXT resume (or just paste raw text) and get a recruiter-ready LaTeX resume
+* **AI Resume Conversion** — upload a PDF, DOCX, or TXT resume (or just paste raw text) and get a recruiter-ready LaTeX resume
 * **Multiple Templates** — choose between **Jake's** (classic serif), **Minimal** (clean, compact), and **Modern** (sans-serif with blue accents)
 * **3-Stage AI Pipeline** — Reader (extract structured data) → Polisher (strengthen bullet points) → LaTeX generator
-* **Real-Time Progress** — live status updates via Server-Sent Events (SSE)
-* **PDF Preview** — instantly rendered server-side with `pdflatex`
+* **Real-Time Progress** — live status updates via Supabase Realtime
 * **Overleaf Integration** — open the generated LaTeX directly in Overleaf
-* **Rate Limiting** — Rack::Attack throttling per IP
+* **Private by design** — files are parsed **in your browser**; only extracted text is stored (and rows auto-expire)
 
 ---
 
 ## 🛠 Technology Stack
 
-### Backend
-* Ruby on Rails 8.0 API (no database — state lives in Redis)
-* Redis for status/results/caching + Pub/Sub for real-time updates
-* Sidekiq for background job processing
-* Groq API (Llama models) for the AI pipeline
-* Rack::Attack rate limiting · Docker
-
 ### Frontend
-* Remix.js + Vite
-* TypeScript · Tailwind CSS · Framer Motion
-* react-pdf for PDF preview
+* Remix.js + Vite · TypeScript · Tailwind CSS · Framer Motion
+* pdf.js (in-browser PDF text extraction) · mammoth.js (DOCX)
+* Supabase JS client (insert + Realtime subscription)
+
+### Backend — 100% Supabase
+* **Postgres** — `resumes` table with RLS (no server of our own!)
+* **Database Webhook (pg_net)** — fires the Edge Function on insert
+* **Edge Function `process-resume`** — 3-stage Groq pipeline (Deno/TypeScript)
+* **Realtime** — pushes every row update to the browser instantly
+* **Groq API** (Llama/Qwen models) for the AI pipeline
+
+> ℹ️ The old Rails + Sidekiq + Redis backend is retired (`backend/` kept for reference).
 
 ---
 
@@ -40,172 +41,143 @@
 User Upload / Paste
      │
      ▼
-Frontend (Remix.js)
-     │  POST /api/v1/resumes
+Browser (Remix) ── pdf.js / mammoth extract text locally
+     │
+     │  insert into public.resumes (Supabase JS)
      ▼
-Rails API
-     │  enqueue ResumeProcessingJob
+Postgres trigger (pg_net webhook)
+     │  POST /functions/v1/process-resume
      ▼
-Sidekiq Worker
+Edge Function (Deno)
+     │  Groq pipeline: Reader → Polisher → LaTeX
+     │  UPDATE resumes SET status=..., latex=...
+     ▼
+Supabase Realtime ──► Browser updates live
      │
      ▼
-AI Pipeline (Groq)
-  Reader → Polisher → LaTeX
-     │
-     ▼
-pdflatex → PDF
-     │
-     ▼
-SSE status updates → Live Preview
+LaTeX output → Copy / Download .tex / Open in Overleaf
 ```
-
-### How it flows
-
-1. **Upload** — the frontend POSTs a file (or pasted text) plus a chosen `template`.
-2. **Accept** — the API validates size/type, generates a `request_id`, and enqueues `ResumeProcessingJob` via Sidekiq.
-3. **Process** — the job runs the 3-stage Groq pipeline and publishes status updates (Redis + Pub/Sub) at each stage.
-4. **Preview** — the frontend streams status via SSE, then fetches the PDF from `/preview`, which compiles the LaTeX with `pdflatex` and caches the result in Redis.
 
 ---
 
-## 🚀 Local Development
+## 🚀 Setup Guide
 
-### Prerequisites
-* Ruby 3.4.1 (see `backend/.ruby-version`)
-* Node 20+
-* Redis (`redis-server`)
-* Groq API keys (one or more — see below)
+### 1. Create a Supabase project
 
-### Backend
+1. Go to [supabase.com](https://supabase.com) → **New project** (free tier is fine).
+2. Note your **Project URL** and keys from **Project Settings → API**:
+   - `SUPABASE_URL` → `https://<project-ref>.supabase.co`
+   - `SUPABASE_ANON_KEY` → the `anon` `public` key
+   - `SUPABASE_SERVICE_ROLE_KEY` → the `service_role` key (secret!)
+
+### 2. Create the database schema
+
+Install the Supabase CLI, then from the repo root:
 
 ```bash
-cd backend
-bundle install
-
-# Terminal 1 — web server
-bin/rails server
-
-# Terminal 2 — job worker (required! jobs won't run without it)
-bundle exec sidekiq -C config/sidekiq.yml
-
-# Redis must be running locally: redis-server
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase db push
 ```
 
-### Frontend
+This runs `supabase/migrations/0001_resumes.sql`, which creates:
+- the `public.resumes` table
+- RLS policies (anon can insert + read)
+- Realtime publication for the table
+- the `handle_new_resume()` trigger + pg_net webhook
+
+Then set the two custom settings the webhook reads:
+
+```sql
+-- Run in the Supabase SQL editor:
+alter system set app.settings.function_url =
+  'https://<project-ref>.supabase.co';
+alter system set app.settings.service_role_key =
+  '<your-service-role-key>';
+select pg_reload_conf();
+```
+
+> Alternative if `alter system` is blocked: use the Dashboard →
+> Database → Webhooks UI to create the equivalent insert webhook,
+> or store both values in Vault and adapt the trigger.
+
+### 3. Deploy the Edge Function
+
+```bash
+supabase functions deploy process-resume
+supabase secrets set GROQ_API_KEY=gsk_...   # from console.groq.com
+```
+
+Optional stage-specific keys (rotated automatically on 401/429):
+
+```bash
+supabase secrets set GROQ_API_KEY_READER=gsk_... \
+  GROQ_API_KEY_POLISHER=gsk_... \
+  GROQ_API_KEY_LATEX=gsk_...
+```
+
+Optional model overrides: `GROQ_MODEL_READER`, `GROQ_MODEL_POLISHER`, `GROQ_MODEL_LATEX`.
+
+### 4. Configure + run the frontend
 
 ```bash
 cd frontend
 npm install
+
+# .env (local dev)
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_ANON_KEY=<your-anon-key>
+
 npm run dev
 ```
 
-The Vite dev server proxies `/api/*` to `http://localhost:3000` automatically.
+### 5. Deploy the frontend (Netlify)
 
-### Tests
+Set these environment variables in Netlify → Site settings → Environment:
+
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | `https://<project-ref>.supabase.co` |
+| `SUPABASE_ANON_KEY` | your anon key |
+
+Then deploy. `netlify.toml` already builds via the Remix Netlify adapter.
+
+---
+
+## 🔌 How it works
+
+1. **Extract (browser)** — `lib/resumes.ts` reads PDF via pdf.js / DOCX via mammoth / TXT directly. Nothing is uploaded except the extracted text.
+2. **Insert** — a row is inserted into `public.resumes` with `resume_text` + `template`.
+3. **Webhook** — `handle_new_resume()` calls the `process-resume` Edge Function via pg_net.
+4. **Pipeline** — the Edge Function runs Reader → Polisher → LaTeX with Groq, updating the row's `status` (and finally `latex`) after each stage.
+5. **Realtime** — the browser subscription receives every update and renders the progress pipeline live.
+
+### Data lifecycle
+
+Rows contain only extracted resume text + generated LaTeX (no original files), and you can add a daily cron cleanup:
+
+```sql
+select cron.schedule('cleanup-resumes', '0 3 * * *', $$select count(*) from pg_sleep(0); delete from resumes where created_at < now() - interval '1 day';$$);
+```
+
+*(Requires the `pg_cron` extension — enable it in the Dashboard.)*
+
+---
+
+## 🧪 Development
 
 ```bash
-cd backend
-bundle exec rspec
-
 cd frontend
 npm run typecheck
 npm run lint
 ```
 
----
-
-## 🐳 Docker
-
-There is no docker-compose file. The backend image runs **both** the Rails server and the Sidekiq worker via `bin/start`, so one container is enough:
+Edge Function local test:
 
 ```bash
-docker build -t makeitjakes-backend ./backend
-docker run -p 8080:8080 \
-  -e REDIS_URL=redis://host.docker.internal:6379/0 \
-  -e GROQ_API_KEY=your-key \
-  makeitjakes-backend
+supabase functions serve process-resume \
+  --env-file ./supabase/.env.local
 ```
-
----
-
-## ☁️ Google Cloud Deployment
-
-```bash
-gcloud auth login
-gcloud config set project YOUR_PROJECT_ID
-gcloud builds submit
-```
-
-`cloudbuild.yaml` runs the backend test suite, builds/pushes both images, and deploys them to Cloud Run. Secrets are managed through Secret Manager.
-
----
-
-## 🔐 Environment Variables
-
-### Backend
-
-| Variable | Description |
-|---|---|
-| `GROQ_API_KEY_READER`, `_2`, `_3`, `_4` | API keys for the Reader stage (rotated on 401/429) |
-| `GROQ_API_KEY_POLISHER`, `_2`, `_3` | API keys for the Polisher stage |
-| `GROQ_API_KEY_LATEX`, `_2`, `_3` | API keys for the LaTeX stage |
-| `GROQ_API_KEY` | Fallback single key used if no stage-specific keys are set |
-| `GROQ_MODEL_<STAGE>` | Optional model override per stage (e.g. `GROQ_MODEL_LATEX`) |
-| `REDIS_URL` | Redis connection URL (default `redis://localhost:6379/0`) |
-| `REDIS_POOL_SIZE` | Redis connection pool size (default `10`) |
-| `MAX_UPLOAD_BYTES` | Max upload size in bytes (default `10485760` / 10MB) |
-| `PDF_COMPILE_TIMEOUT` | pdflatex timeout in seconds (default `60`) |
-| `SSE_TIMEOUT_SECONDS` | SSE stream timeout in seconds (default `180`) |
-| `CORS_ORIGINS` | Allowed CORS origins (default `*`) |
-| `SECRET_KEY_BASE` | Rails secret key base (production) |
-
-### Frontend
-
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` / `API_URL` | Backend origin for the API (defaults to same origin, proxied in dev) |
-
----
-
-## 📡 API Endpoints
-
-### Upload / Convert a Resume
-
-```http
-POST /api/v1/resumes
-Content-Type: multipart/form-data
-```
-
-Form fields:
-* `file` — the resume file (PDF, DOC, DOCX, or TXT) **or**
-* `content` — raw resume text (pasted input)
-* `template` — `jakes` (default), `minimal`, or `modern`
-
-Response: `202 Accepted` with `{ "request_id": "..." }`.
-
-### Real-Time Status Updates
-
-```http
-GET /api/v1/status/events?request_id=...
-```
-
-Server-Sent Events stream with per-stage progress, ending with `completed` or `Error: ...`.
-
-### Preview PDF
-
-```http
-GET /api/v1/resumes/preview?request_id=...
-```
-
-Returns `{ "pdf": "<base64>", "name": "<first/last JSON>" }`. LaTeX is compiled with `pdflatex` (with a timeout and no shell escape) and cached for 1 hour.
-
----
-
-## 🎯 Vision
-
-> Help developers create recruiter-ready resumes in seconds through AI, beautiful design, and world-class user experience.
-
-No templates to edit. No formatting headaches. Just upload, transform, and download.
 
 ---
 
