@@ -31,6 +31,7 @@ export default function Index() {
   const [status, setStatus] = useState<string>('');
   const [requestId, setRequestId] = useState<string | null>(null);
   const [latex, setLatex] = useState<string | null>(null);
+  const [personName, setPersonName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
@@ -39,6 +40,7 @@ export default function Index() {
   const handleRowUpdate = (row: ResumeRow) => {
     if (row.status) setStatus(row.status);
     if (row.latex) setLatex(row.latex);
+    if (row.person_name) setPersonName(row.person_name);
 
     const s = row.status ?? '';
     if (s.includes('completed') || s.startsWith('Error')) {
@@ -52,6 +54,7 @@ export default function Index() {
     setIsSubmitting(true);
     setError(null);
     setLatex(null);
+    setPersonName(null);
     setStatus('');
 
     try {
@@ -96,6 +99,7 @@ export default function Index() {
     unsubRef.current?.();
     unsubRef.current = null;
     setLatex(null);
+    setPersonName(null);
     setStatus('');
     setRequestId(null);
     setError(null);
@@ -211,7 +215,7 @@ export default function Index() {
                       Convert Another Resume
                     </button>
                   </div>
-                  <LatexOutput latex={latex} personName={null} />
+                  <LatexOutput latex={latex} personName={personName} />
                 </motion.div>
               </div>
             )}
