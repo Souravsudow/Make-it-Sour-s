@@ -8,11 +8,158 @@ import FileText from 'lucide-react/icons/file-text';
 import Code from 'lucide-react/icons/code';
 import { cn } from '~/lib/utils';
 import { Buffer } from 'buffer';
+import { loadPdfjs } from '~/lib/resumes';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import {
   compileLatexToPdf,
   LatexCompileError,
   type CompileResult,
 } from '~/lib/latex-compile';
+
+/**
+ * Renders a single PDF page as a canvas sized to the given width.
+ * The canvas uses `w-full h-auto`, so it scales down responsively
+ * while the height always follows the page's natural aspect ratio —
+ * no fixed height, no inner scrollbar.
+ */
+function PdfPage({
+  pdfDoc,
+  pageNumber,
+  width,
+}: {
+  pdfDoc: PDFDocumentProxy;
+  pageNumber: number;
+  width: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || width <= 0) return;
+
+    let cancelled = false;
+    // Structural type so we don't depend on pdfjs-dist's RenderTask export.
+    let task: { cancel(): void; promise: Promise<unknown> } | null = null;
+
+    (async () => {
+      try {
+        const page = await pdfDoc.getPage(pageNumber);
+        if (cancelled) return;
+
+        const baseViewport = page.getViewport({ scale: 1 });
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const scale = (width / baseViewport.width) * dpr;
+        const viewport = page.getViewport({ scale });
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+
+        task = page.render({ canvasContext: ctx, viewport });
+        await task.promise;
+      } catch (err) {
+        const name = (err as { name?: string } | null)?.name;
+        if (name !== 'RenderingCancelledException' && name !== 'AbortException') {
+          console.error(`Failed to render PDF page ${pageNumber}`, err);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      task?.cancel();
+    };
+  }, [pdfDoc, pageNumber, width]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="block w-full h-auto rounded-lg bg-white shadow-lg"
+      aria-label={`Resume PDF page ${pageNumber}`}
+    />
+  );
+}
+
+/**
+ * Full-page PDF preview: loads the document with pdf.js and renders
+ * EVERY page stacked vertically at the container's width. The wrapper
+ * has no fixed height and no overflow rules — the browser's own page
+ * scroll handles the rest.
+ */
+function PdfFullPreview({ blob }: { blob: Blob }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [width, setWidth] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load the document once per blob.
+  useEffect(() => {
+    let stale = false;
+    let doc: PDFDocumentProxy | null = null;
+    setError(null);
+    setPdfDoc(null);
+    setNumPages(0);
+
+    (async () => {
+      try {
+        const pdfjs = await loadPdfjs();
+        const data = new Uint8Array(await blob.arrayBuffer());
+        doc = await pdfjs.getDocument({ data }).promise;
+        if (stale) {
+          void doc.destroy();
+          return;
+        }
+        setPdfDoc(doc);
+        setNumPages(doc.numPages);
+      } catch (err) {
+        console.error('Failed to load PDF for preview', err);
+        if (!stale) setError('Could not display the PDF preview.');
+      }
+    })();
+
+    return () => {
+      stale = true;
+      void doc?.destroy();
+    };
+  }, [blob]);
+
+  // Track the container width so pages fit it exactly (no inner scroll).
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setWidth(Math.max(0, Math.floor(el.clientWidth)));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const pages = useMemo(
+    () => Array.from({ length: numPages }, (_, i) => i + 1),
+    [numPages]
+  );
+
+  if (error) {
+    return <p className="py-8 text-center text-sm text-gray-300">{error}</p>;
+  }
+
+  return (
+    <div ref={wrapRef} className="w-full space-y-4">
+      {!pdfDoc && (
+        <div className="flex items-center justify-center py-12 text-gray-300">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      {pdfDoc &&
+        width > 0 &&
+        pages.map((n) => (
+          <PdfPage key={n} pdfDoc={pdfDoc} pageNumber={n} width={width} />
+        ))}
+    </div>
+  );
+}
 
 interface LatexOutputProps {
   latex: string;
@@ -172,11 +319,10 @@ export function LatexOutput({ latex, personName, className }: LatexOutputProps) 
                   Download PDF
                 </Button>
               </div>
-              <iframe
-                src={pdf.url}
-                title="Resume PDF preview"
-                className="w-full h-[70vh] min-h-[500px] rounded-lg bg-white"
-              />
+              {/* Full PDF rendered in-page via pdf.js — all pages stacked,
+                  sized to the container width, no fixed height, no inner
+                  scrollbar. The page scroll shows the whole resume. */}
+              <PdfFullPreview blob={pdf.blob} />
             </>
           )}
         </div>

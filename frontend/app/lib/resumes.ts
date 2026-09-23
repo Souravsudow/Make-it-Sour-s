@@ -3,7 +3,7 @@ import { getSupabase } from './supabase';
 let workerSrcPromise: Promise<string> | null = null;
 
 /** Lazily load pdf.js (code-split) and configure its worker once. */
-async function loadPdfjs() {
+export async function loadPdfjs() {
   const [pdfjs, workerUrl] = await Promise.all([
     import('pdfjs-dist'),
     import('pdfjs-dist/build/pdf.worker.min.mjs?url').then((m) => m.default as string),
