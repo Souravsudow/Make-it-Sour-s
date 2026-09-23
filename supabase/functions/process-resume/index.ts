@@ -148,6 +148,40 @@ async function runPipeline(row: ResumeRow): Promise<void> {
     const normalized = normalize(extracted);
     validate(normalized as ResumeData);
 
+    // Dev diagnostic: when the resume is thin (few projects), surface user
+    // data that WAS extracted but never reaches the template — those sections
+    // could be rendered to fill the page legitimately. Check the logs:
+    // `supabase functions logs process-resume`.
+    if (normalized.projects.length < 3) {
+      // Map each raw extraction key to where normalize() outputs it.
+      // 'other' has no destination, so any content there is always unused.
+      const destinations: Record<string, unknown> = {
+        certifications: normalized.certifications,
+        publications: normalized.publications,
+        presentations: normalized.presentations,
+        awards: normalized.honors,
+        achievements: normalized.honors,
+        other: [], // never normalized — always a candidate
+      };
+      const raw = extracted as Record<string, unknown>;
+      const unused = Object.keys(destinations).filter((key) => {
+        const rawVal = raw[key];
+        const hasRaw = Array.isArray(rawVal)
+          ? rawVal.length > 0
+          : Boolean(rawVal && String(rawVal).trim());
+        if (!hasRaw) return false;
+        const dest = destinations[key];
+        return !Array.isArray(dest) || dest.length === 0;
+      });
+      if (unused.length > 0) {
+        console.warn(
+          `[process-resume ${id}] Only ${normalized.projects.length} projects — ` +
+          `extracted but unused content sections: ${unused.join(', ')}. ` +
+          `Consider rendering them in the template to add legitimate content.`
+        );
+      }
+    }
+
     const name = normalized.name;
     const personName = [name.first_name, name.last_name].filter(Boolean).join(' ') || null;
     await update({

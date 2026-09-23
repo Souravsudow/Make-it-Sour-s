@@ -3,12 +3,16 @@
  */
 
 export interface ResumeData {
+  summary?: string;
   name: { first_name: string; last_name: string };
   contact_info: Record<string, string>;
   education: Record<string, unknown>[];
   experience: Record<string, unknown>[];
   projects: Record<string, unknown>[];
   technical_skills: Record<string, string[]>;
+  certifications: Record<string, unknown>[];
+  publications: Record<string, unknown>[];
+  presentations: Record<string, unknown>[];
   honors: Record<string, unknown>[];
 }
 
@@ -65,6 +69,11 @@ function normalizeCollection(value: unknown): unknown[] {
   }
   if (typeof value === 'string') return value.trim() ? [value] : [];
   return [];
+}
+
+/** Type-narrowing filter — `.filter(Boolean)` doesn't narrow null away for tsc. */
+function nonNull<T>(value: T | null): value is T {
+  return value !== null;
 }
 
 function isEmptyEntry(data: Record<string, unknown>): boolean {
@@ -173,11 +182,18 @@ export function normalize(raw: unknown): ResumeData {
   return {
     name: normalizeName(r['name'] ?? r),
     contact_info: normalizeContact(r),
-    education: normalizeCollection(r['education']).map(normalizeEducation).filter(Boolean),
-    experience: normalizeCollection(r['experience']).map(normalizeExperience).filter(Boolean),
-    projects: normalizeCollection(r['projects']).map(normalizeProject).filter(Boolean),
+    education: normalizeCollection(r['education']).map(normalizeEducation).filter(nonNull),
+    experience: normalizeCollection(r['experience']).map(normalizeExperience).filter(nonNull),
+    projects: normalizeCollection(r['projects']).map(normalizeProject).filter(nonNull),
     technical_skills: normalizeSkills(r['technical_skills'] ?? r['skills']),
-    honors: normalizeCollection(r['honors'] ?? r['leadership'] ?? r['awards']).map(normalizeHonor).filter(Boolean),
+    // Optional summary/objective — synthesized by the polisher if absent.
+    summary: cleanString(r['summary'] ?? r['objective']) || undefined,
+    // Previously dropped after extraction — now preserved so the LaTeX
+    // stage can render them as legitimate page-filling content.
+    certifications: normalizeCollection(r['certifications']).map(normalizeHonor).filter(nonNull),
+    publications: normalizeCollection(r['publications']).map(normalizeHonor).filter(nonNull),
+    presentations: normalizeCollection(r['presentations']).map(normalizeHonor).filter(nonNull),
+    honors: normalizeCollection(r['honors'] ?? r['leadership'] ?? r['awards']).map(normalizeHonor).filter(nonNull),
   };
 }
 

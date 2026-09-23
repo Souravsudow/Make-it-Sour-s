@@ -35,7 +35,8 @@ export const STAGE_CONFIGS: Record<Stage, StageConfig> = {
     ],
     defaultModels: ['qwen/qwen3.8-27b'],
     jsonMode: true,
-    maxTokens: 6000,
+    // Richer output: 3-4 expanded bullets per role + synthesized summary.
+    maxTokens: 7000,
     temperature: 0.3,
   },
   latex: {
@@ -46,7 +47,8 @@ export const STAGE_CONFIGS: Record<Stage, StageConfig> = {
     ],
     defaultModels: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b'],
     jsonMode: false,
-    maxTokens: 4000,
+    // Full-page LaTeX with 3-4 bullets per role needs more room.
+    maxTokens: 6000,
     temperature: 0.2,
   },
 };

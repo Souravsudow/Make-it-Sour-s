@@ -35,14 +35,14 @@ export const JAKES_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
 \\setlength{\\tabcolsep}{0in}
 
 \\titleformat{\\section}{
-  \\vspace{-4pt}\\scshape\\raggedright\\large
-}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]
+  \\vspace{6pt}\\scshape\\raggedright\\large
+}{}{0em}{}[\\color{black}\\titlerule \\vspace{-4pt}]
 
 \\pdfgentounicode=1
 
 \\newcommand{\\resumeItem}[1]{
   \\item\\small{
-    {#1 \\vspace{-2pt}}
+    {#1 \\vspace{2pt}}
   }
 }
 
@@ -51,21 +51,21 @@ export const JAKES_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
     \\begin{tabular*}{0.97\\textwidth}[t]{l@{\\extracolsep{\\fill}}r}
       \\textbf{#1} & #2 \\\\
       \\textit{\\small#3} & \\textit{\\small #4} \\\\
-    \\end{tabular*}\\vspace{-7pt}
+    \\end{tabular*}\\vspace{-4pt}
 }
 
 \\newcommand{\\resumeSubSubheading}[2]{
     \\item
     \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
       \\textit{\\small#1} & \\textit{\\small #2} \\\\
-    \\end{tabular*}\\vspace{-7pt}
+    \\end{tabular*}\\vspace{-4pt}
 }
 
 \\newcommand{\\resumeProjectHeading}[2]{
     \\item
     \\begin{tabular*}{0.97\\textwidth}{l@{\\extracolsep{\\fill}}r}
       \\small#1 & #2 \\\\
-    \\end{tabular*}\\vspace{-7pt}
+    \\end{tabular*}\\vspace{-4pt}
 }
 
 \\newcommand{\\resumeSubItem}[1]{\\resumeItem{#1}\\vspace{-4pt}}
@@ -75,7 +75,7 @@ export const JAKES_TEMPLATE = `\\documentclass[letterpaper,11pt]{article}
 \\newcommand{\\resumeSubHeadingListStart}{\\begin{list}{}{\\setlength{\\leftmargin}{0.15in}\\setlength{\\itemsep}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}}}
 \\newcommand{\\resumeSubHeadingListEnd}{\\end{list}}
 \\newcommand{\\resumeItemListStart}{\\begin{itemize}}
-\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}
+\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-1pt}}
 
 \\begin{document}
 
@@ -142,7 +142,7 @@ export const MINIMAL_TEMPLATE = `\\documentclass[letterpaper,10pt]{article}
 \\titleformat{\\section}{
   \\normalfont\\scshape\\large\\raggedright
 }{}{0em}{}[\\titlerule \\vspace{-2pt}]
-\\titlespacing{\\section}{0pt}{10pt}{4pt}
+\\titlespacing{\\section}{0pt}{16pt}{8pt}
 
 \\newcommand{\\resumeItem}[1]{\\item\\small{#1}}
 
@@ -163,8 +163,8 @@ export const MINIMAL_TEMPLATE = `\\documentclass[letterpaper,10pt]{article}
 
 \\newcommand{\\resumeSubHeadingListStart}{\\begin{list}{}{\\setlength{\\leftmargin}{0em}\\setlength{\\itemsep}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}}}
 \\newcommand{\\resumeSubHeadingListEnd}{\\end{list}}
-\\newcommand{\\resumeItemListStart}{\\begin{itemize}[leftmargin=1.2em,itemsep=0pt,parsep=0pt,topsep=2pt]}
-\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-4pt}}
+\\newcommand{\\resumeItemListStart}{\\begin{itemize}[leftmargin=1.2em,itemsep=3pt,parsep=0pt,topsep=4pt]}
+\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-2pt}}
 
 \\begin{document}
 
@@ -198,7 +198,7 @@ export const MODERN_TEMPLATE = `\\documentclass[letterpaper,10.5pt]{article}
 \\titleformat{\\section}{
   \\color{accent}\\normalfont\\bfseries\\large\\raggedright
 }{}{0em}{}[{\\color{accent}\\titlerule} \\vspace{-2pt}]
-\\titlespacing{\\section}{0pt}{12pt}{4pt}
+\\titlespacing{\\section}{0pt}{16pt}{8pt}
 
 \\newcommand{\\resumeItem}[1]{\\item\\small{#1}}
 
@@ -219,8 +219,8 @@ export const MODERN_TEMPLATE = `\\documentclass[letterpaper,10.5pt]{article}
 
 \\newcommand{\\resumeSubHeadingListStart}{\\begin{list}{}{\\setlength{\\leftmargin}{0em}\\setlength{\\itemsep}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}}}
 \\newcommand{\\resumeSubHeadingListEnd}{\\end{list}}
-\\newcommand{\\resumeItemListStart}{\\begin{itemize}[leftmargin=1.2em,itemsep=0pt,parsep=0pt,topsep=2pt]}
-\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-4pt}}
+\\newcommand{\\resumeItemListStart}{\\begin{itemize}[leftmargin=1.2em,itemsep=3pt,parsep=0pt,topsep=4pt]}
+\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-2pt}}
 
 \\begin{document}
 
