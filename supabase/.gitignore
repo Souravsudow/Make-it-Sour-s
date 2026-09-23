@@ -1,0 +1,8 @@
+# Supabase CLI local state (linked project ref, versions, etc.)
+.temp/
+
+# macOS
+.DS_Store
+
+# Nested duplicate created by running the CLI inside supabase/
+supabase/
